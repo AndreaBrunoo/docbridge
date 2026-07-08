@@ -671,30 +671,28 @@ select:focus {
   border: 1px solid var(--line);
   background: var(--panel-nested);
 }
-/* --- CONFRONTO IN SCALA DI GRIGI NEUTRI E PULITI --- */
-
-/* In White Mode */
+/* --- CONFRONTO: CAMPI NON CORRISPONDENTI EVIDENZIATI IN ROSSO --- */
 .diff.changed {
-  background: #242629 !important;
-  border-color: #1a1b1d !important;
+  background: #fee2e2 !important;
+  border-color: var(--red) !important;
 }
 .diff.changed small {
-  color: #a1a1aa !important;
+  color: #b91c1c !important;
 }
 .diff.changed b {
-  color: #ffffff !important;
+  color: #991b1b !important;
 }
 
 /* In Dark Mode */
 .dark .diff.changed {
-  background: #d4d4d8 !important;
-  border-color: #e4e4e7 !important;
+  background: #3f1212 !important;
+  border-color: var(--red) !important;
 }
 .dark .diff.changed small {
-  color: #4b5563 !important;
+  color: #fca5a5 !important;
 }
 .dark .diff.changed b {
-  color: #18181b !important;
+  color: #f87171 !important;
 }
 .toast-host {
   position: fixed;
