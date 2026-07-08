@@ -241,6 +241,25 @@ function renderDashboard() {
    <div class="bar-row"><b>Match Manuali</b><div class="bar-track"><div class="bar-fill" style="width:${pMan}%"></div></div><span>${pMan}%</span></div>
   `;
   }
+
+  // CORREZIONE: Calcolo dinamico reale delle Commodity basato sui contratti effettivamente abbinati
+  const cChart = document.getElementById("commodityChart");
+  if (cChart) {
+    let eeCount = 0;
+    let gasCount = 0;
+    state.matched.forEach(item => {
+      if (item.commodity === "Gas naturale") gasCount++;
+      else eeCount++;
+    });
+    const totalMatched = state.matched.length;
+    const pEe = totalMatched > 0 ? Math.round((eeCount / totalMatched) * 100) : 0;
+    const pGas = totalMatched > 0 ? Math.round((gasCount / totalMatched) * 100) : 0;
+
+    cChart.innerHTML = `
+     <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:${pEe}%"></div></div><span>${pEe}%</span></div>
+     <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:${pGas}%"></div></div><span>${pGas}%</span></div>
+    `;
+  }
 }
 
 function matchColor(score) {
@@ -283,7 +302,6 @@ function renderConsultazione() {
   if (!b) return;
   b.innerHTML = "";
   
-  // Modificato: Considera SOLO i record contenuti nell'array degli abbinamenti effettivi (state.matched)
   const matchesOnly = state.matched.map((d) => ({ 
     d, 
     score: d.match_score, 
@@ -494,15 +512,18 @@ function makePostelFromUno(u) {
 }
 
 function sampleRecord() {
+  const isGas = Math.random() > 0.5;
   return {
     cliente_nome_cognome: "Alessandro Rossi",
     cliente_codice_fiscale: "RSSLSS85A01H501Z",
     data_firma_contratto: new Date().toISOString().split('T')[0],
-    codice_pod: "IT001E123456789",
-    commodity: "Energia Elettrica",
+    codice_pod: isGas ? "" : "IT001E123456789",
+    codice_pdr: isGas ? "444455556666" : "",
+    commodity: isGas ? "Gas naturale" : "Energia Elettrica",
     cliente_record_type_testuale: "Retail",
     opportunita_tipo_record: "Switch",
-    codice_prodotto_ee: "FIX_LIGHT_2026",
+    codice_prodotto_ee: isGas ? "" : "FIX_LIGHT_2026",
+    codice_prodotto_gas: isGas ? "GAS_EASY_2026" : "",
   };
 }
 
