@@ -46,7 +46,7 @@ function defaultState() {
 
 function seedState() {
   const base = defaultState();
-  logEvent(base, "Sistema demo inizializzato - Nessun record caricato");
+  logEvent(base, "Sistema demo inizializzato - Pronto all'uso");
   return base;
 }
 
@@ -127,9 +127,8 @@ function confidence(u, p) {
 }
 
 function initData() {
-  // Avvio ad input vuoto senza seed automatico di contratti per richiesta utente.
   if (state.events.length === 0) {
-    logEvent(state, "Pannello di controllo pronto. In attesa di caricamento file o dati.");
+    logEvent(state, "Pannello di controllo vuoto pronto. Caricare i tracciati core.");
     save();
   }
 }
@@ -145,7 +144,7 @@ function finalizeMatch(u, p, type) {
     codice_pdr: u.codice_pdr || "",
     uno_id: u.id,
     postel_id: p.id,
-    tipo_match: type, // "Automatico" o "Manuale"
+    tipo_match: type, 
     match_score: conf.score,
     matched_at: new Date().toLocaleString("it-IT"),
   };
@@ -207,7 +206,7 @@ function render() {
   try {
     renderInner();
   } catch (e) {
-    console.error("Errore render(), ripristino i dati demo:", e);
+    console.error("Errore render(), ripristino lo stato:", e);
     localStorage.removeItem("dockbridgePremiumState");
     Object.assign(state, seedState());
     save();
@@ -242,32 +241,6 @@ function renderDashboard() {
    <div class="bar-row"><b>Match Manuali</b><div class="bar-track"><div class="bar-fill" style="width:${pMan}%"></div></div><span>${pMan}%</span></div>
   `;
   }
-  const aChart = document.getElementById("anomChart");
-  if (aChart) {
-    const an = state.metrics.anom;
-    aChart.innerHTML = `
-   <div class="bar-row"><b>Errore POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.pod * 20)}%"></div></div><span>${an.pod}</span></div>
-   <div class="bar-row"><b>Discrepanza Nome</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.name * 20)}%"></div></div><span>${an.name}</span></div>
-   <div class="bar-row"><b>Anomalia Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.commodity * 20)}%"></div></div><span>${an.commodity}</span></div>
-  `;
-  }
-  const cChart = document.getElementById("commodityChart");
-  if (cChart) {
-    cChart.innerHTML = `
-   <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
-   <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
-  `;
-  }
-}
-
-function bestMatchScore(d, candidates) {
-  if (!candidates || !candidates.length) return 0;
-  let best = 0;
-  candidates.forEach((other) => {
-    const c = confidence(d, other);
-    if (c.score > best) best = c.score;
-  });
-  return best;
 }
 
 function matchColor(score) {
@@ -310,38 +283,22 @@ function renderConsultazione() {
   if (!b) return;
   b.innerHTML = "";
   
-  const all = [
-    ...state.queuesigned.map((d) => ({
-      d,
-      score: bestMatchScore(d, state.queuearchived),
-      final: false,
-      emoji: ""
-    })),
-    ...state.queuearchived.map((d) => ({
-      d,
-      score: bestMatchScore(d, state.queuesigned),
-      final: false,
-      emoji: ""
-    })),
-    ...state.matched.map((d) => ({ 
-      d, 
-      score: d.match_score, 
-      final: true,
-      emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
-    })),
-  ];
+  // Modificato: Considera SOLO i record contenuti nell'array degli abbinamenti effettivi (state.matched)
+  const matchesOnly = state.matched.map((d) => ({ 
+    d, 
+    score: d.match_score, 
+    emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
+  }));
   
   let count = 0;
-  all.forEach(({ d, score, final, emoji }) => {
+  matchesOnly.forEach(({ d, score, emoji }) => {
     if (comm && d.commodity !== comm) return;
     const matchStr = `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod || d.codice_pdr || ''}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
     
     const tr = document.createElement("tr");
-    const badgeText = final
-      ? `${matchBadge(score)} <span style="font-size:14px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`
-      : matchBadge(score);
+    const badgeText = `${matchBadge(score)} <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
       
     tr.innerHTML = `
       <td><b>${d.id}</b></td>
@@ -355,8 +312,7 @@ function renderConsultazione() {
     tr.onclick = (e) => {
       if (e.target.classList.contains('btn-delete-row')) {
         e.stopPropagation();
-        if (final) deleteMatched(d.id);
-        else deleteStaging(d.id, d.id.startsWith('UNO') ? 'uno' : 'postel');
+        deleteMatched(d.id);
         return;
       }
       openDrawer(d);
@@ -365,7 +321,7 @@ function renderConsultazione() {
   });
   
   if (count === 0)
-    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato corrispondente ai filtri</td></tr>';
+    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun abbinamento presente. Avvia il matching dall\'Area Staging.</td></tr>';
 }
 
 function renderStaging() {
@@ -434,7 +390,7 @@ function checkStickyMatch() {
   if (selectedUno && selectedPostel) {
     const conf = confidence(selectedUno, selectedPostel);
     document.getElementById("stickyMatchText").innerHTML =
-      `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza stimato artificialmente: <b>${conf.score}%</b> (${conf.type})</span>`;
+      `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
     el.style.display = "flex";
   } else {
     el.style.display = "none";
@@ -453,7 +409,7 @@ function manualMatch(u, p) {
   state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
   state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
   state.metrics.manual++;
-  logEvent(state, `Accoppiamento manuale eseguito con successo: ${u.id} + ${p.id} (Confidenza: ${conf.score}%)`);
+  logEvent(state, `Accoppiamento manuale ✋ eseguito: ${u.id} + ${p.id} (${conf.score}%)`);
   selectedUno = null;
   selectedPostel = null;
   checkStickyMatch();
@@ -539,14 +495,14 @@ function makePostelFromUno(u) {
 
 function sampleRecord() {
   return {
-    cliente_nome_cognome: "Vittorio Emanuele",
-    cliente_codice_fiscale: "VTTMNL84M01H501Z",
+    cliente_nome_cognome: "Alessandro Rossi",
+    cliente_codice_fiscale: "RSSLSS85A01H501Z",
     data_firma_contratto: new Date().toISOString().split('T')[0],
-    codice_pod: "IT001E888888888",
+    codice_pod: "IT001E123456789",
     commodity: "Energia Elettrica",
     cliente_record_type_testuale: "Retail",
     opportunita_tipo_record: "Switch",
-    codice_prodotto_ee: "POWER_TOP_2026",
+    codice_prodotto_ee: "FIX_LIGHT_2026",
   };
 }
 
@@ -618,10 +574,10 @@ window.addEventListener("DOMContentLoaded", () => {
         const r = parseCSV(reader.result);
         state.queuesigned.push(r);
         state.lastUnoId = r.id;
-        logEvent(state, `Record Uno Energy importato da CSV: ${r.id}`);
+        logEvent(state, `File caricato: ${r.id} aggiunto in Staging`);
         save();
         render();
-        toast(`Contratto ${r.id} caricato in staging`);
+        toast(`Contratto ${r.id} inserito nello Staging`);
       } catch (err) {
         toast("Errore nel CSV: " + err.message);
       }
@@ -635,24 +591,24 @@ window.addEventListener("DOMContentLoaded", () => {
     let p;
     if (lastUno) {
       p = makePostelFromUno(lastUno);
-      logEvent(state, `Record Postel simulato generato, compatibile con ${lastUno.id}`);
+      logEvent(state, `Tracciato ZIP Postel importato in Staging, compatibile con ${lastUno.id}`);
     } else {
       p = { ...sampleRecord(), id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
-      logEvent(state, "Record Postel simulato generato");
+      logEvent(state, `Tracciato ZIP Postel generico importato in Staging`);
     }
     state.queuearchived.push(p);
     state.lastPostelId = p.id;
     save();
     render();
-    toast(`Record Postel ${p.id} importato in staging`);
+    toast(`Record Postel ${p.id} inserito nello Staging`);
   };
   
   document.getElementById("btnAutoMatch").onclick = () => {
     const count = autoMatchAll();
     save();
     render();
-    if (count > 0) toast(`Match automatico: ${count} contratti riconciliati`);
-    else toast("Nessuna coppia con confidenza ≥ 85% trovata in staging");
+    if (count > 0) toast(`Match automatico: ${count} contratti abbinati`);
+    else toast("Nessuna corrispondenza automatica (confidenza ≥ 85%) trovata nello staging");
   };
   
   document.getElementById("closeDrawer").onclick = closeDrawer;
@@ -673,10 +629,10 @@ window.addEventListener("DOMContentLoaded", () => {
     if (r) {
       state.queuesigned.push(r);
       state.lastUnoId = r.id;
-      logEvent(state, `Record Uno Energy creato manualmente: ${r.id}`);
+      logEvent(state, `Nuovo record inserito in Staging: ${r.id}`);
       save();
       render();
-      toast("Record creato in staging");
+      toast("Record inserito in staging");
     }
   };
   
