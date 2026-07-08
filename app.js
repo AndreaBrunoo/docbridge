@@ -679,30 +679,111 @@ function makePostelFromUno(u) {
 
 function sampleRecord() {
   const isGas = Math.random() > 0.5;
-  const nome = "Alessandro Rossi";
-  const oppId = Math.floor(10000 + Math.random() * 90000);
-  const firma = new Date();
-  const certificazione = new Date(firma);
-  certificazione.setDate(certificazione.getDate() + 1);
+  // Dati anagrafici/di stato/di data: randomizzati ad ogni invocazione del
+  // bottone "Inserisci dati demo" per evitare record demo tutti identici.
+  const dataFirma = randomDateInLastYear();
+  const dataCertificazione = randomDateOnOrAfter(dataFirma);
   return {
-    cliente_nome_cognome: nome,
-    cliente_codice_fiscale: "RSSLSS85A01H501Z",
-    data_firma_contratto: firma.toISOString().split('T')[0],
-    codice_pod: isGas ? "" : "IT001E123456789",
-    codice_pdr: isGas ? "444455556666" : "",
+    cliente_nome_cognome: randomNomeCognome(),
+    cliente_codice_fiscale: randomCodiceFiscale(),
+    cliente_partita_iva: randomPartitaIva(),
+    data_firma_contratto: dataFirma,
+    codice_pod: isGas ? "" : randomPod(),
+    codice_pdr: isGas ? randomPdr() : "",
     contract_account: `ACC-${Math.floor(10000 + Math.random() * 90000)}`,
+    pde_external_id: `PDE-${Math.floor(100000 + Math.random() * 900000)}`,
     commodity: isGas ? "Gas naturale" : "Energia Elettrica",
     cliente_codice_identificativo_univoco: `IDU-${Math.floor(1000 + Math.random() * 9000)}`,
-    cliente_record_type_testuale: "Retail",
-    opportunita_tipo_record: "Switch",
-    opportunita_id: `OPP-${oppId}`,
-    opportunita_nome: `Opp ${nome}`,
+    cliente_record_type_testuale: pickRandom(["Retail", "Business"]),
+    opportunita_tipo_record: pickRandom(["Switch", "Nuova attivazione"]),
+    opportunita_id: `OPP-${Math.floor(10000 + Math.random() * 90000)}`,
+    id_forniture: `02${randomAlnum(14)}`,
+    opportunita_nome: randomNomeOpportunita(),
     opportunita_commodity: isGas ? "Gas" : "Power",
     codice_prodotto_ee: isGas ? "" : "FIX_LIGHT_2026",
     codice_prodotto_gas: isGas ? "GAS_EASY_2026" : "",
-    stato: "Attivo",
-    data_certificazione: certificazione.toISOString().split('T')[0],
+    stato: pickRandom(["Attivo", "Sospeso", "Chiuso"]),
+    data_certificazione: dataCertificazione,
   };
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomAlnum(len) {
+  const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let out = "";
+  for (let i = 0; i < len; i++) out += chars.charAt(Math.floor(Math.random() * chars.length));
+  return out;
+}
+
+function randomDigits(len) {
+  let out = "";
+  for (let i = 0; i < len; i++) out += Math.floor(Math.random() * 10);
+  return out;
+}
+
+function randomDateInLastYear() {
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+  const ts = oneYearAgo.getTime() + Math.random() * (now.getTime() - oneYearAgo.getTime());
+  return new Date(ts).toISOString().split("T")[0];
+}
+
+// Data casuale in formato YYYY-MM-DD compresa fra `startISO` (incluso) e oggi
+// (incluso). Usata per garantire data_certificazione ≥ data_firma_contratto.
+function randomDateOnOrAfter(startISO) {
+  const start = new Date(startISO + "T00:00:00");
+  const now = new Date();
+  const startClamped = start > now ? now : start;
+  const ts = startClamped.getTime() + Math.random() * (now.getTime() - startClamped.getTime());
+  return new Date(ts).toISOString().split("T")[0];
+}
+
+// POD reale italiano: prefisso "IT001E" + 8 cifre (es. "IT001E12345678").
+function randomPod() {
+  return "IT001E" + randomDigits(8);
+}
+
+// PDR reale italiano: 14 cifre (es. "44445555666677").
+function randomPdr() {
+  return randomDigits(14);
+}
+
+function randomNomeCognome() {
+  const nomi = ["Alessandro", "Maria", "Giulia", "Francesco", "Luca", "Sofia", "Andrea", "Chiara", "Matteo", "Elena", "Davide", "Federica"];
+  const cognomi = ["Rossi", "Bianchi", "Romano", "Ferrari", "Esposito", "Russo", "Bruno", "Greco", "Costa", "De Luca", "Conti", "Marino"];
+  return `${pickRandom(nomi)} ${pickRandom(cognomi)}`;
+}
+
+function randomCodiceFiscale() {
+  // Schema non validato fiscalmente: 6 lettere + 2 cifre + 1 lettera + 2 cifre + 1 lettera + 3 cifre + 1 lettera (16 caratteri).
+  const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const cons = (n) => Array.from({ length: n }, () => LETTERS.charAt(Math.floor(Math.random() * LETTERS.length))).join("");
+  const dig = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 10)).join("");
+  return cons(6) + dig(2) + cons(1) + dig(2) + cons(1) + dig(3) + cons(1);
+}
+
+function randomPartitaIva() {
+  // 11 cifre; la cifra di controllo (11ª) è calcolata col metodo Luhn-like
+  // semplificato usato dall'Agenzia delle Entrate: somma pesata sui 10 digit.
+  let base = "";
+  for (let i = 0; i < 10; i++) base += Math.floor(Math.random() * 10);
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    const d = parseInt(base[i], 10);
+    sum += (i % 2 === 0) ? d : (d * 2 > 9 ? d * 2 - 9 : d * 2);
+  }
+  const check = (10 - (sum % 10)) % 10;
+  return base + check;
+}
+
+function randomNomeOpportunita() {
+  const prefissi = ["Migrazione", "Attivazione", "Switch", "Subentro", "Voltura"];
+  const tipologie = ["Business", "Retail", "PMI", "Condominio", "Residenziale"];
+  return `${pickRandom(prefissi)} ${pickRandom(tipologie)} ${pickRandom(["EE", "GAS", "Dual"])}`;
 }
 
 document.getElementById("themeToggle").addEventListener("click", (e) => {
