@@ -55,7 +55,7 @@
           </div>
         </header>
 
-        <section id="dashboard" class="view active">
+<section id="dashboard" class="view active">
           <div class="kpi-grid">
             <div class="kpi">
               <small>Match Automatici (AI)</small><b id="kpiAuto">0</b>
@@ -71,11 +71,7 @@
             </div>
           </div>
           
-          <div class="grid two">
-            <div class="card">
-              <div class="card-head"><h3>Riconciliazione Flussi</h3></div>
-              <div id="matchChart" class="chart-bars"></div>
-            </div>
+          <div class="grid">
             <div class="card">
               <div class="card-head"><h3>Anomalie Rilevate</h3></div>
               <div id="anomChart" class="chart-bars"></div>
@@ -84,9 +80,16 @@
 
           <div class="grid two">
             <div class="card">
+              <div class="card-head"><h3>Riconciliazione Flussi</h3></div>
+              <div id="matchChart" class="chart-bars"></div>
+            </div>
+            <div class="card">
               <div class="card-head"><h3>Tipologia Commodity (Contratti Abbinati)</h3></div>
               <div id="commodityChart" class="chart-bars"></div>
             </div>
+          </div>
+
+          <div class="grid">
             <div class="card">
               <div class="card-head"><h3>Log Eventi Sistema</h3></div>
               <div id="timelineEvents" class="timeline"></div>
