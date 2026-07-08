@@ -223,13 +223,12 @@ function renderInner() {
 }
 
 function renderDashboard() {
+  const totalAnomalies = Object.values(state.metrics.anom).reduce((a, b) => a + b, 0);
   document.getElementById("kpiAuto").innerText = state.metrics.auto;
   document.getElementById("kpiManuale").innerText = state.metrics.manual;
   document.getElementById("kpiStaging").innerText =
     state.queuesigned.length + state.queuearchived.length;
-  document.getElementById("kpiAnom").innerText = Object.values(
-    state.metrics.anom,
-  ).reduce((a, b) => a + b, 0);
+  document.getElementById("kpiAnom").innerText = totalAnomalies;
 
   const mChart = document.getElementById("matchChart");
   if (mChart) {
@@ -242,7 +241,21 @@ function renderDashboard() {
   `;
   }
 
-  // CORREZIONE: Calcolo dinamico reale delle Commodity basato sui contratti effettivamente abbinati
+  // Ripristinato e corretto: Grafico delle anomalie rilevate
+  const aChart = document.getElementById("anomChart");
+  if (aChart) {
+    const pComm = totalAnomalies > 0 ? Math.round((state.metrics.anom.commodity / totalAnomalies) * 100) : 0;
+    const pPod = totalAnomalies > 0 ? Math.round((state.metrics.anom.pod / totalAnomalies) * 100) : 0;
+    const pName = totalAnomalies > 0 ? Math.round((state.metrics.anom.name / totalAnomalies) * 100) : 0;
+    
+    aChart.innerHTML = `
+      <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${state.metrics.anom.commodity}</span></div>
+      <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${state.metrics.anom.pod}</span></div>
+      <div class="bar-row"><b>Anomalia Anagrafica</b><div class="bar-track"><div class="bar-fill" style="width:${pName}%; background:var(--orange)"></div></div><span>${state.metrics.anom.name}</span></div>
+    `;
+  }
+
+  // Correzione Tipologia Commodity basato sui contratti effettivamente abbinati
   const cChart = document.getElementById("commodityChart");
   if (cChart) {
     let eeCount = 0;
@@ -629,7 +642,7 @@ window.addEventListener("DOMContentLoaded", () => {
     save();
     render();
     if (count > 0) toast(`Match automatico: ${count} contratti abbinati`);
-    else toast("Nessuna corrispondenza automatica (confidenza ≥ 85%) trovata nello staging");
+    else toast("Nessuna corrispondenza automatica (confidenza ≥ 85%) trouvata nello staging");
   };
   
   document.getElementById("closeDrawer").onclick = closeDrawer;
