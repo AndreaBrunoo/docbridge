@@ -322,22 +322,47 @@ function renderDashboard() {
   }
 }
 
+// Percentuale di abbinamento migliore di un documento verso la coda opposta
+// (Uno Energy <-> Postel), usata al posto del vecchio "Stato" fisso.
+function bestMatchScore(d, candidates) {
+  if (!candidates.length) return 0;
+  let best = 0;
+  candidates.forEach((other) => {
+    const c = confidence(d, other);
+    if (c.score > best) best = c.score;
+  });
+  return best;
+}
+// Gradiente continuo rosso (0%) -> giallo (50%) -> verde (100%) in HSL.
+function matchColor(score) {
+  const s = Math.max(0, Math.min(100, score));
+  const hue = Math.round(s * 1.2); // 0=rosso, 60=giallo, 120=verde
+  return `hsl(${hue}, 75%, 42%)`;
+}
+function matchBadge(score) {
+  return `<span class="badge" style="background:${matchColor(score)};color:#fff">${score}%</span>`;
+}
+
 function renderConsultazione() {
   const q = document.getElementById("docSearch").value.toLowerCase();
   const comm = document.getElementById("docCommodity").value;
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
-  const all = [...state.queuesigned, ...state.queuearchived];
+  const all = [
+    ...state.queuesigned.map((d) => ({ d, opposite: state.queuearchived })),
+    ...state.queuearchived.map((d) => ({ d, opposite: state.queuesigned })),
+  ];
   let count = 0;
-  all.forEach((d) => {
+  all.forEach(({ d, opposite }) => {
     if (comm && d.commodity !== comm) return;
     const matchStr =
       `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
+    const score = bestMatchScore(d, opposite);
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td><span class="badge orange">Staging</span></td>`;
+    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td>${matchBadge(score)}</td>`;
     tr.onclick = () => openDrawer(d);
     b.appendChild(tr);
   });
