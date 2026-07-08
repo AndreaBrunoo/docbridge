@@ -208,19 +208,23 @@
             <form id="manualForm" onsubmit="return false;">
               <div class="form-grid">
                 <div class="field">
-                  <label for="f_cliente_nome_cognome">Nome e Cognome</label
+                  <label for="f_cliente_nome_cognome">Fornitura : Cliente : Nome e Cognome</label
                   ><input type="text" id="f_cliente_nome_cognome" name="cliente_nome_cognome" />
                 </div>
                 <div class="field">
-                  <label for="f_cliente_codice_fiscale">Codice Fiscale</label
+                  <label for="f_cliente_codice_fiscale">Fornitura : Cliente : Codice fiscale</label
                   ><input type="text" id="f_cliente_codice_fiscale" name="cliente_codice_fiscale" />
+                </div>
+                <div class="field">
+                  <label for="f_cliente_partita_iva">Fornitura : Cliente : Partita IVA</label
+                  ><input type="text" id="f_cliente_partita_iva" name="cliente_partita_iva" />
                 </div>
                 <div class="field">
                   <label for="f_codice_pod_pdr" id="f_codice_pod_pdr_label">Codice POD</label
                   ><input type="text" id="f_codice_pod_pdr" name="codice_pod" />
                 </div>
                 <div class="field">
-                  <label for="f_data_firma_contratto">Data Firma</label
+                  <label for="f_data_firma_contratto">Data firma contratto</label
                   ><input type="date" id="f_data_firma_contratto" name="data_firma_contratto" />
                 </div>
                 <div class="field">
@@ -231,48 +235,52 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_codice_prodotto" id="f_codice_prodotto_label">Prodotto EE</label
+                  <label for="f_codice_prodotto" id="f_codice_prodotto_label">Codice Prodotto EE</label
                   ><input type="text" id="f_codice_prodotto" name="codice_prodotto_ee" />
                 </div>
                 <div class="field">
-                  <label for="f_contract_account">Contract account</label
+                  <label for="f_contract_account">Contract Account</label
                   ><input type="text" id="f_contract_account" name="contract_account" />
                 </div>
                 <div class="field">
-                  <label for="f_cliente_codice_identificativo_univoco">Codice identificativo</label
+                  <label for="f_pde_external_id">Pde external id</label
+                  ><input type="text" id="f_pde_external_id" name="pde_external_id" />
+                </div>
+                <div class="field">
+                  <label for="f_cliente_codice_identificativo_univoco">Fornitura : Cliente : Codice Identificativo Univoco</label
                   ><input type="text" id="f_cliente_codice_identificativo_univoco" name="cliente_codice_identificativo_univoco" />
                 </div>
                 <div class="field">
-                  <label for="f_cliente_record_type_testuale">Record type</label
+                  <label for="f_cliente_record_type_testuale">Fornitura : Cliente : Record Type Testuale</label
                   ><select id="f_cliente_record_type_testuale" name="cliente_record_type_testuale">
                     <option value="Retail">Retail</option>
                     <option value="Business">Business</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_opportunita_tipo_record">Tipo opportunità</label
+                  <label for="f_opportunita_tipo_record">Fornitura : Opportunita : Tipo di record Opportunita</label
                   ><select id="f_opportunita_tipo_record" name="opportunita_tipo_record">
                     <option value="Switch">Switch</option>
                     <option value="Nuova attivazione">Nuova attivazione</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_opportunita_id">ID opportunità</label
-                  ><input type="text" id="f_opportunita_id" name="opportunita_id" />
+                  <label for="f_id_forniture">ID forniture</label
+                  ><input type="text" id="f_id_forniture" name="id_forniture" />
                 </div>
                 <div class="field">
-                  <label for="f_opportunita_nome">Nome opportunità</label
+                  <label for="f_opportunita_nome">Fornitura : Opportunita : Nome opportunita</label
                   ><input type="text" id="f_opportunita_nome" name="opportunita_nome" />
                 </div>
                 <div class="field">
-                  <label for="f_opportunita_commodity">Commodity opportunità</label
+                  <label for="f_opportunita_commodity">Fornitura : Opportunita : Commodity</label
                   ><select id="f_opportunita_commodity" name="opportunita_commodity">
                     <option value="Power">Power</option>
                     <option value="Gas">Gas</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_stato">Stato</label
+                  <label for="f_stato">STATO</label
                   ><select id="f_stato" name="stato">
                     <option value="Attivo">Attivo</option>
                     <option value="Sospeso">Sospeso</option>
@@ -280,7 +288,7 @@
                   </select>
                 </div>
                 <div class="field">
-                  <label for="f_data_certificazione">Data certificazione</label
+                  <label for="f_data_certificazione">Data Certificazione</label
                   ><input type="date" id="f_data_certificazione" name="data_certificazione" />
                 </div>
               </div>
