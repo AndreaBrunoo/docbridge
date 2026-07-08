@@ -18,17 +18,33 @@
 }
 
 body.dark {
-  /* --- DARK MODE (Contrasti nettamente aumentati per staccare le sezioni) --- */
-  --bg: #000000; /* Grado 1: Sfondo principale nero assoluto */
-  --sidebar-bg: #0b0b0b; /* Grado 2: Sfondo barra laterale molto scuro */
-  --panel: #161616; /* Grado 3: Sfondo delle Card alzato per dare stacco netto */
-  --panel-nested: #222222; /* Grado 4: Elementi interni ancora più chiari */
-  --line: #3a3a3a; /* Grado 5: Bordi e linee grigio medio-scuro per dividere con decisione */
+  /* --- DARK MODE (Blu Notte + Arancione) --- */
 
-  --text: #f8fafc;
-  --muted: #a0a0a0;
-  --shadow: 0 20px 55px #000000;
+  /* Layering */
+  --bg: #0a0f1c;            /* Blu notte */
+  --sidebar-bg: #0d1324;    /* Sidebar blu scurissimo */
+  --panel: #111a2e;         /* Card blu profondo */
+  --panel-nested: #182544;  /* Elementi interni */
+  --line: #2c3b5c;          /* Linee blu-grigie */
+
+  /* Testi */
+  --text: #e6ecf8;          /* Testo chiaro con tinta blu */
+  --muted: #9aa6c1;         /* Testo secondario */
+
+  /* Colori aziendali */
+  --primary: #3b82f6;       /* Blu acceso */
+  --primary-dark: #1e3a8a;  /* Blu scuro */
+  --accent: #f97316;        /* Arancione Unoenergy-like */
+
+  /* Stati */
+  --green: #22c55e;
+  --red: #ef4444;
+  --violet: #a855f7;
+
+  /* UI */
+  --shadow: 0 20px 55px rgba(0, 0, 0, 0.55);
 }
+
 
 * {
   box-sizing: border-box;
