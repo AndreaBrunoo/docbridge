@@ -740,7 +740,7 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   document.getElementById("f_commodity")?.addEventListener("change", (e) => {
-    syncManualCommodityFields(e.target.value === "Gas naturale", true);
+    syncManualCommodityFields(e.target.value === "Gas naturale", false);
   });
 
   document.getElementById("btnManualMatch").onclick = openManualCompare;
