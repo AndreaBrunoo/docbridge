@@ -257,8 +257,8 @@ function renderDashboard() {
   const cChart = document.getElementById("commodityChart");
   if (cChart) {
     cChart.innerHTML = `
-   <div class="bar-row"><b>Energia Elettrica (Power)</b><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span>85%</span></div>
-   <div class="bar-row"><b>Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span>15%</span></div>
+   <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span>85%</span></div>
+   <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span>15%</span></div>
   `;
   }
 }
