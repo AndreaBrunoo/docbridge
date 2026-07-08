@@ -93,6 +93,14 @@ function logEvent(s, txt) {
   if (s.events.length > 40) s.events.pop();
 }
 
+function isGasRecord(d) {
+  return (d?.commodity || "").toLowerCase().includes("gas");
+}
+
+function podPdrValue(d) {
+  return isGasRecord(d) ? (d.codice_pdr || "N/D") : (d.codice_pod || "N/D");
+}
+
 function confidence(u, p) {
   if (!u || !p) return { score: 0, type: "Anomalo", reasons: [] };
   let matchCount = 0,
@@ -136,15 +144,15 @@ function initData() {
 function finalizeMatch(u, p, type) {
   const conf = confidence(u, p);
   return {
+    ...u,
     id: `DOC-${Math.floor(10000 + Math.random() * 90000)}`,
-    cliente_nome_cognome: u.cliente_nome_cognome,
     commodity: u.commodity || "Energia Elettrica",
     data_firma_contratto: u.data_firma_contratto || new Date().toISOString().split('T')[0],
     codice_pod: u.codice_pod || "",
     codice_pdr: u.codice_pdr || "",
     uno_id: u.id,
     postel_id: p.id,
-    tipo_match: type, 
+    tipo_match: type,
     match_score: conf.score,
     matched_at: new Date().toLocaleString("it-IT"),
   };
@@ -367,7 +375,7 @@ function renderConsultazione() {
   let count = 0;
   matchesOnly.forEach(({ d, score, emoji }) => {
     if (comm && d.commodity !== comm) return;
-    const matchStr = `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod || d.codice_pdr || ''}`.toLowerCase();
+    const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
     
@@ -413,7 +421,7 @@ function renderStaging() {
     tr.innerHTML = `
       <td><b>${u.id}</b></td>
       <td>${u.cliente_nome_cognome}</td>
-      <td><small>${u.codice_pod || u.codice_pdr || "N/D"}</small></td>
+      <td><small>${podPdrValue(u)}</small></td>
       <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
     `;
     tr.onclick = (e) => {
@@ -436,7 +444,7 @@ function renderStaging() {
     tr.innerHTML = `
       <td><b>${p.id}</b></td>
       <td>${p.cliente_nome_cognome}</td>
-      <td><small>${p.codice_pod || p.codice_pdr || "N/D"}</small></td>
+      <td><small>${podPdrValue(p)}</small></td>
       <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
     `;
     tr.onclick = (e) => {
@@ -507,6 +515,8 @@ function openDrawer(d) {
   const grid = document.getElementById("drawerMetaGrid");
   grid.innerHTML = "";
   FIELDS.forEach(([k, label]) => {
+    if (k === "codice_pod" && isGasRecord(d)) return;
+    if (k === "codice_pdr" && !isGasRecord(d)) return;
     if (d[k]) {
       grid.innerHTML += `<div class="meta"><small>${label}</small><b>${d[k]}</b></div>`;
     }
@@ -516,7 +526,8 @@ function openDrawer(d) {
     grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
   }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
-  document.getElementById("pdfPod").innerText = d.codice_pod || d.codice_pdr || "N/D";
+  document.getElementById("pdfPodLabel").innerText = isGasRecord(d) ? "Identificativo PDR:" : "Identificativo POD:";
+  document.getElementById("pdfPod").innerText = podPdrValue(d);
   document.getElementById("pdfDate").innerText = d.data_firma_contratto || 'N/D';
   dr.classList.add("open");
 }
@@ -569,17 +580,29 @@ function makePostelFromUno(u) {
 
 function sampleRecord() {
   const isGas = Math.random() > 0.5;
+  const nome = "Alessandro Rossi";
+  const oppId = Math.floor(10000 + Math.random() * 90000);
+  const firma = new Date();
+  const certificazione = new Date(firma);
+  certificazione.setDate(certificazione.getDate() + 1);
   return {
-    cliente_nome_cognome: "Alessandro Rossi",
+    cliente_nome_cognome: nome,
     cliente_codice_fiscale: "RSSLSS85A01H501Z",
-    data_firma_contratto: new Date().toISOString().split('T')[0],
+    data_firma_contratto: firma.toISOString().split('T')[0],
     codice_pod: isGas ? "" : "IT001E123456789",
     codice_pdr: isGas ? "444455556666" : "",
+    contract_account: `ACC-${Math.floor(10000 + Math.random() * 90000)}`,
     commodity: isGas ? "Gas naturale" : "Energia Elettrica",
+    cliente_codice_identificativo_univoco: `IDU-${Math.floor(1000 + Math.random() * 9000)}`,
     cliente_record_type_testuale: "Retail",
     opportunita_tipo_record: "Switch",
+    opportunita_id: `OPP-${oppId}`,
+    opportunita_nome: `Opp ${nome}`,
+    opportunita_commodity: isGas ? "Gas" : "Power",
     codice_prodotto_ee: isGas ? "" : "FIX_LIGHT_2026",
     codice_prodotto_gas: isGas ? "GAS_EASY_2026" : "",
+    stato: "Attivo",
+    data_certificazione: certificazione.toISOString().split('T')[0],
   };
 }
 
@@ -700,6 +723,26 @@ window.addEventListener("DOMContentLoaded", () => {
     document.getElementById(idv)?.addEventListener("input", render);
   });
   
+  function syncManualCommodityFields(isGas, clearValues) {
+    const podPdrInput = document.getElementById("f_codice_pod_pdr");
+    const podPdrLabel = document.getElementById("f_codice_pod_pdr_label");
+    const prodottoInput = document.getElementById("f_codice_prodotto");
+    const prodottoLabel = document.getElementById("f_codice_prodotto_label");
+    if (!podPdrInput || !prodottoInput) return;
+    podPdrInput.name = isGas ? "codice_pdr" : "codice_pod";
+    podPdrLabel.innerText = isGas ? "Codice PDR" : "Codice POD";
+    prodottoInput.name = isGas ? "codice_prodotto_gas" : "codice_prodotto_ee";
+    prodottoLabel.innerText = isGas ? "Prodotto GAS" : "Prodotto EE";
+    if (clearValues) {
+      podPdrInput.value = "";
+      prodottoInput.value = "";
+    }
+  }
+
+  document.getElementById("f_commodity")?.addEventListener("change", (e) => {
+    syncManualCommodityFields(e.target.value === "Gas naturale", true);
+  });
+
   document.getElementById("btnManualMatch").onclick = openManualCompare;
   document.getElementById("createUno").onclick = () => {
     const r = getManualRecord();
@@ -715,6 +758,9 @@ window.addEventListener("DOMContentLoaded", () => {
   
   document.getElementById("fillDemo").onclick = () => {
     const r = sampleRecord();
+    const isGas = r.commodity === "Gas naturale";
+    document.getElementById("f_commodity").value = r.commodity;
+    syncManualCommodityFields(isGas, false);
     FIELDS.forEach(([k]) => {
       const el = document.querySelector(`[name="${k}"]`);
       if (el) el.value = r[k] || "";
