@@ -12,6 +12,7 @@ const FIELDS = [
   ["cliente_record_type_testuale", "Record type"],
   ["opportunita_tipo_record", "Tipo opportunità"],
   ["opportunita_id", "ID opportunità"],
+  ["id_forniture", "ID forniture"],
   ["opportunita_nome", "Nome opportunità"],
   ["opportunita_commodity", "Commodity opportunità"],
   ["codice_prodotto_ee", "Prodotto EE"],
@@ -19,6 +20,30 @@ const FIELDS = [
   ["stato", "Stato"],
   ["data_certificazione", "Data certificazione"],
 ];
+
+// Mappa le intestazioni "umane" del CSV reale Uno Energy (export CRM)
+// alle chiavi interne usate dall'applicazione.
+const CSV_HEADER_MAP = {
+  "fornitura : cliente : nome e cognome": "cliente_nome_cognome",
+  "fornitura : cliente : codice fiscale": "cliente_codice_fiscale",
+  "fornitura : cliente : partita iva": "cliente_partita_iva",
+  "data firma contratto": "data_firma_contratto",
+  "codice pod": "codice_pod",
+  "codice pdr": "codice_pdr",
+  "contract account": "contract_account",
+  "pde external id": "pde_external_id",
+  "commodity": "commodity",
+  "fornitura : cliente : codice identificativo univoco": "cliente_codice_identificativo_univoco",
+  "fornitura : cliente : record type testuale": "cliente_record_type_testuale",
+  "fornitura : opportunita : tipo di record opportunita": "opportunita_tipo_record",
+  "id forniture": "id_forniture",
+  "fornitura : opportunita : nome opportunita": "opportunita_nome",
+  "fornitura : opportunita : commodity": "opportunita_commodity",
+  "codice prodotto ee": "codice_prodotto_ee",
+  "codice prodotto gas": "codice_prodotto_gas",
+  "stato": "stato",
+  "data certificazione": "data_certificazione",
+};
 
 const state = normalizeState(loadState());
 let selectedUno = null,
@@ -77,7 +102,25 @@ function normalizeState(loaded) {
 }
 
 function save() {
-  localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
+  try {
+    localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
+    return true;
+  } catch (err) {
+    // Quota di localStorage superata: alleggeriamo lo stato tenendo solo la
+    // cronologia più recente e riproviamo, invece di far fallire l'azione
+    // dell'utente (import CSV, match, inserimento manuale, ecc.).
+    console.warn("Salvataggio fallito, provo a liberare spazio:", err);
+    state.events = state.events.slice(0, 15);
+    if (state.matched.length > 150) state.matched = state.matched.slice(0, 150);
+    try {
+      localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
+      toast("Spazio archiviazione quasi esaurito: rimossa la cronologia più vecchia");
+      return true;
+    } catch (err2) {
+      toast("Spazio di archiviazione del browser esaurito. Usa 'Ripristina dati demo' per liberarlo.");
+      return false;
+    }
+  }
 }
 
 function loadState() {
@@ -106,12 +149,28 @@ function confidence(u, p) {
   let matchCount = 0,
     total = 0,
     reasons = [];
+  // Pesi per il calcolo del grado di confidenza. Escludiamo di proposito i
+  // campi di natura puramente CRM/Opportunità Uno Energy (opportunita_tipo_record,
+  // id_forniture, opportunita_nome) perché non hanno un corrispondente
+  // significativo nel tracciato Postel e non vanno usati per il matching.
   const weights = {
-    cliente_nome_cognome: 30,
-    cliente_codice_fiscale: 35,
-    cliente_partita_iva: 35,
-    codice_pod: 40,
-    codice_pdr: 40,
+    cliente_nome_cognome: 20,
+    cliente_codice_fiscale: 20,
+    cliente_partita_iva: 15,
+    codice_pod: 20,
+    codice_pdr: 20,
+    contract_account: 15,
+    pde_external_id: 15,
+    cliente_codice_identificativo_univoco: 10,
+    data_firma_contratto: 8,
+    commodity: 8,
+    cliente_record_type_testuale: 5,
+    opportunita_id: 8,
+    opportunita_commodity: 5,
+    codice_prodotto_ee: 8,
+    codice_prodotto_gas: 8,
+    stato: 5,
+    data_certificazione: 5,
   };
   Object.keys(weights).forEach((k) => {
     if (u[k] || p[k]) {
@@ -185,19 +244,59 @@ function autoMatchAll(silent = false) {
   return count;
 }
 
+function parseCSVLine(line, sep) {
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === sep) {
+      out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+// Parsa un CSV con intestazione e restituisce un array di record (una riga
+// per ogni riga dati del file), mappando le intestazioni umane del CRM
+// Uno Energy alle chiavi interne quando riconosciute.
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (!lines.length) throw new Error("Il file CSV è vuoto");
+  const lines = text.trim().split(/\r?\n/).filter((l) => l.trim() !== "");
+  if (lines.length < 2) throw new Error("Il file CSV non contiene righe di dati");
   const sep = lines[0].includes(";") ? ";" : ",";
-  const headers = lines[0].split(sep).map((h) => h.trim());
-  const values = (lines[1] || "").split(sep).map((v) => v.trim());
-  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
-  headers.forEach((h, i) => {
-    if (h) r[h] = values[i] !== undefined ? values[i] : "";
-  });
-  if (!r.cliente_nome_cognome) r.cliente_nome_cognome = "Cliente da CSV";
-  if (!r.commodity) r.commodity = "Energia Elettrica";
-  return r;
+  const rawHeaders = parseCSVLine(lines[0], sep).map((h) => h.trim());
+  const headers = rawHeaders.map((h) => CSV_HEADER_MAP[h.toLowerCase()] || h);
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = parseCSVLine(lines[i], sep).map((v) => v.trim());
+    if (values.every((v) => v === "")) continue;
+    const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
+    headers.forEach((h, idx) => {
+      if (h) r[h] = values[idx] !== undefined ? values[idx] : "";
+    });
+    if (!r.cliente_nome_cognome) r.cliente_nome_cognome = "Cliente da CSV";
+    if (!r.commodity) r.commodity = "Energia Elettrica";
+    records.push(r);
+  }
+  if (!records.length) throw new Error("Nessuna riga dati valida trovata nel CSV");
+  return records;
 }
 
 function toast(m) {
@@ -671,13 +770,13 @@ window.addEventListener("DOMContentLoaded", () => {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const r = parseCSV(reader.result);
-        state.queuesigned.push(r);
-        state.lastUnoId = r.id;
-        logEvent(state, `File caricato: ${r.id} aggiunto in Staging`);
+        const records = parseCSV(reader.result);
+        state.queuesigned.push(...records);
+        state.lastUnoId = records[records.length - 1].id;
+        logEvent(state, `File caricato: ${records.length} contratti aggiunti in Staging`);
         save();
         render();
-        toast(`Contratto ${r.id} inserito nello Staging`);
+        toast(`${records.length} contratti inseriti nello Staging`);
       } catch (err) {
         toast("Errore nel CSV: " + err.message);
       }
