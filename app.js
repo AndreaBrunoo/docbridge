@@ -19,10 +19,10 @@ const FIELDS = [
   ["stato", "Stato"],
   ["data_certificazione", "Data certificazione"],
 ];
+
 const state = normalizeState(loadState());
 let selectedUno = null,
   selectedPostel = null;
-const tables = {};
 
 function defaultState() {
   return {
@@ -43,14 +43,13 @@ function defaultState() {
     dark: false,
   };
 }
+
 function seedState() {
   const base = defaultState();
-  logEvent(base, "Sistema demo inizializzato");
+  logEvent(base, "Sistema demo inizializzato - Nessun record caricato");
   return base;
 }
-// Ripara uno stato caricato da localStorage che potrebbe provenire da
-// un'altra versione della demo (stessa chiave, forma dei dati diversa),
-// così i pulsanti non si bloccano più in silenzio per un campo mancante.
+
 function normalizeState(loaded) {
   if (!loaded || typeof loaded !== "object") return seedState();
   const base = defaultState();
@@ -76,9 +75,11 @@ function normalizeState(loaded) {
   merged.dark = typeof loaded.dark === "boolean" ? loaded.dark : false;
   return merged;
 }
+
 function save() {
   localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
 }
+
 function loadState() {
   try {
     return JSON.parse(localStorage.getItem("dockbridgePremiumState"));
@@ -93,6 +94,7 @@ function logEvent(s, txt) {
 }
 
 function confidence(u, p) {
+  if (!u || !p) return { score: 0, type: "Anomalo", reasons: [] };
   let matchCount = 0,
     total = 0,
     reasons = [];
@@ -117,8 +119,7 @@ function confidence(u, p) {
       }
     }
   });
-  const score =
-    total > 0 ? Math.min(100, Math.round((matchCount / total) * 100)) : 0;
+  const score = total > 0 ? Math.min(100, Math.round((matchCount / total) * 100)) : 0;
   let type = "Anomalo";
   if (score >= 85) type = "Automatico";
   else if (score >= 50) type = "Manuale";
@@ -126,107 +127,25 @@ function confidence(u, p) {
 }
 
 function initData() {
-  if (
-    state.queuesigned.length === 0 &&
-    state.queuearchived.length === 0 &&
-    state.files.length === 0
-  ) {
-    const firstNames = [
-        "Mario",
-        "Luigi",
-        "Anna",
-        "Elena",
-        "Giovanni",
-        "Paola",
-        "Roberto",
-        "Silvia",
-      ],
-      lastNames = [
-        "Rossi",
-        "Bianchi",
-        "Verdi",
-        "Ferrari",
-        "Russo",
-        "Esposito",
-        "Gallo",
-        "Fontana",
-      ];
-    for (let i = 0; i < 12; i++) {
-      const fn = firstNames[i % firstNames.length],
-        ln = lastNames[(i + 3) % lastNames.length],
-        name = `${fn} ${ln}`,
-        cf = `${ln.substring(0, 3).toUpperCase()}${fn.substring(0, 3).toUpperCase()}${80 + i}A01X999${String.fromCharCode(65 + i)}`,
-        pod = `IT001E${100000000 + i * 12345}`,
-        account = `ACC-${20000 + i}`,
-        oppId = `OPP-${50000 + i}`;
-      const u = {
-        id: `UNO-${1000 + i}`,
-        cliente_nome_cognome: name,
-        cliente_codice_fiscale: cf,
-        cliente_partita_iva: "",
-        data_firma_contratto: `2026-03-${10 + i}`,
-        codice_pod: pod,
-        codice_pdr: "",
-        contract_account: account,
-        pde_external_id: "",
-        commodity: "Energia Elettrica",
-        cliente_codice_identificativo_univoco: `IDU-${3000 + i}`,
-        cliente_record_type_testuale: "Retail",
-        opportunita_tipo_record: "Switch",
-        opportunita_id: oppId,
-        opportunita_nome: `Opp ${name}`,
-        opportunita_commodity: "Power",
-        codice_prodotto_ee: "PROMO_POWER_2026",
-        codice_prodotto_gas: "",
-        stato: "Attivo",
-        data_certificazione: `2026-03-${11 + i}`,
-      };
-      state.queuesigned.push(u);
-      if (i !== 3 && i !== 7) {
-        const p = { ...u, id: `POS-${2000 + i}` };
-        if (i === 5) p.cliente_nome_cognome = "Roberto B.";
-        if (i === 9) p.codice_pod = "IT001E999999999";
-        state.queuearchived.push(p);
-      }
-    }
-    state.files = [
-      {
-        id: "F-01",
-        name: "uno_energy_report_2026_03.csv",
-        type: "Uno Energy CSV",
-        date: "2026-03-01",
-        status: "Elaborato",
-        rows: 12,
-      },
-      {
-        id: "F-02",
-        name: "postel_export_batch_A.zip",
-        type: "Postel ZIP",
-        date: "2026-03-02",
-        status: "Elaborato",
-        rows: 10,
-      },
-    ];
-    autoMatchAll(true);
+  // Avvio ad input vuoto senza seed automatico di contratti per richiesta utente.
+  if (state.events.length === 0) {
+    logEvent(state, "Pannello di controllo pronto. In attesa di caricamento file o dati.");
     save();
   }
 }
 
-// Costruisce il documento finale che resta visibile in Consultazione dopo
-// l'abbinamento, con la percentuale "congelata" al momento del match
-// (così non cambia più mentre la coda di staging si svuota).
 function finalizeMatch(u, p, type) {
   const conf = confidence(u, p);
   return {
     id: `DOC-${Math.floor(10000 + Math.random() * 90000)}`,
     cliente_nome_cognome: u.cliente_nome_cognome,
-    commodity: u.commodity,
-    data_firma_contratto: u.data_firma_contratto,
-    codice_pod: u.codice_pod,
-    codice_pdr: u.codice_pdr,
+    commodity: u.commodity || "Energia Elettrica",
+    data_firma_contratto: u.data_firma_contratto || new Date().toISOString().split('T')[0],
+    codice_pod: u.codice_pod || "",
+    codice_pdr: u.codice_pdr || "",
     uno_id: u.id,
     postel_id: p.id,
-    tipo_match: type,
+    tipo_match: type, // "Automatico" o "Manuale"
     match_score: conf.score,
     matched_at: new Date().toLocaleString("it-IT"),
   };
@@ -255,10 +174,7 @@ function autoMatchAll(silent = false) {
     }
   }
   if (count > 0 && !silent)
-    logEvent(
-      state,
-      `Riconciliazione automatica: accoppiati ${count} contratti`,
-    );
+    logEvent(state, `Riconciliazione automatica: accoppiati ${count} contratti`);
   return count;
 }
 
@@ -294,12 +210,11 @@ function render() {
     console.error("Errore render(), ripristino i dati demo:", e);
     localStorage.removeItem("dockbridgePremiumState");
     Object.assign(state, seedState());
-    logEvent(state, "Dati demo ripristinati automaticamente dopo un errore");
     save();
-    toast("Dati demo non validi: ripristinati automaticamente");
     renderInner();
   }
 }
+
 function renderInner() {
   const activeView = document.querySelector(".view.active")?.id;
   if (activeView === "dashboard") renderDashboard();
@@ -320,8 +235,8 @@ function renderDashboard() {
   const mChart = document.getElementById("matchChart");
   if (mChart) {
     const tot = state.metrics.auto + state.metrics.manual;
-    const pAuto = tot > 0 ? Math.round((state.metrics.auto / tot) * 100) : 70;
-    const pMan = tot > 0 ? Math.round((state.metrics.manual / tot) * 100) : 30;
+    const pAuto = tot > 0 ? Math.round((state.metrics.auto / tot) * 100) : 0;
+    const pMan = tot > 0 ? Math.round((state.metrics.manual / tot) * 100) : 0;
     mChart.innerHTML = `
    <div class="bar-row"><b>Match Automatici</b><div class="bar-track"><div class="bar-fill" style="width:${pAuto}%"></div></div><span>${pAuto}%</span></div>
    <div class="bar-row"><b>Match Manuali</b><div class="bar-track"><div class="bar-fill" style="width:${pMan}%"></div></div><span>${pMan}%</span></div>
@@ -339,16 +254,14 @@ function renderDashboard() {
   const cChart = document.getElementById("commodityChart");
   if (cChart) {
     cChart.innerHTML = `
-   <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span>85%</span></div>
-   <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span>15%</span></div>
+   <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
+   <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div><span>0%</span></div>
   `;
   }
 }
 
-// Percentuale di abbinamento migliore di un documento verso la coda opposta
-// (Uno Energy <-> Postel), usata al posto del vecchio "Stato" fisso.
 function bestMatchScore(d, candidates) {
-  if (!candidates.length) return 0;
+  if (!candidates || !candidates.length) return 0;
   let best = 0;
   candidates.forEach((other) => {
     const c = confidence(d, other);
@@ -356,14 +269,38 @@ function bestMatchScore(d, candidates) {
   });
   return best;
 }
-// Gradiente continuo rosso (0%) -> giallo (50%) -> verde (100%) in HSL.
+
 function matchColor(score) {
   const s = Math.max(0, Math.min(100, score));
-  const hue = Math.round(s * 1.2); // 0=rosso, 60=giallo, 120=verde
+  const hue = Math.round(s * 1.2); 
   return `hsl(${hue}, 75%, 42%)`;
 }
+
 function matchBadge(score) {
   return `<span class="badge" style="background:${matchColor(score)};color:#fff">${score}%</span>`;
+}
+
+function deleteMatched(id) {
+  state.matched = state.matched.filter(x => x.id !== id);
+  logEvent(state, `Eliminato record riconciliato: ${id}`);
+  save();
+  render();
+  toast("Record accoppiato rimosso");
+}
+
+function deleteStaging(id, type) {
+  if (type === 'uno') {
+    state.queuesigned = state.queuesigned.filter(x => x.id !== id);
+    if (selectedUno?.id === id) selectedUno = null;
+  } else {
+    state.queuearchived = state.queuearchived.filter(x => x.id !== id);
+    if (selectedPostel?.id === id) selectedPostel = null;
+  }
+  logEvent(state, `Eliminato record ${id} da staging`);
+  checkStickyMatch();
+  save();
+  render();
+  toast("Record rimosso dallo staging");
 }
 
 function renderConsultazione() {
@@ -372,37 +309,63 @@ function renderConsultazione() {
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
+  
   const all = [
     ...state.queuesigned.map((d) => ({
       d,
       score: bestMatchScore(d, state.queuearchived),
       final: false,
+      emoji: ""
     })),
     ...state.queuearchived.map((d) => ({
       d,
       score: bestMatchScore(d, state.queuesigned),
       final: false,
+      emoji: ""
     })),
-    ...state.matched.map((d) => ({ d, score: d.match_score, final: true })),
+    ...state.matched.map((d) => ({ 
+      d, 
+      score: d.match_score, 
+      final: true,
+      emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
+    })),
   ];
+  
   let count = 0;
-  all.forEach(({ d, score, final }) => {
+  all.forEach(({ d, score, final, emoji }) => {
     if (comm && d.commodity !== comm) return;
-    const matchStr =
-      `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod}`.toLowerCase();
+    const matchStr = `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod || d.codice_pdr || ''}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
+    
     const tr = document.createElement("tr");
-    const badge = final
-      ? `${matchBadge(score)} <small title="Abbinamento confermato (${d.tipo_match})">✓</small>`
+    const badgeText = final
+      ? `${matchBadge(score)} <span style="font-size:14px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`
       : matchBadge(score);
-    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td>${badge}</td>`;
-    tr.onclick = () => openDrawer(d);
+      
+    tr.innerHTML = `
+      <td><b>${d.id}</b></td>
+      <td>${d.cliente_nome_cognome}</td>
+      <td>${d.commodity || "Energia Elettrica"}</td>
+      <td><time>${d.data_firma_contratto || 'N/D'}</time></td>
+      <td>${badgeText}</td>
+      <td><button class="btn-delete-row" title="Elimina record">🗑️</button></td>
+    `;
+    
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        if (final) deleteMatched(d.id);
+        else deleteStaging(d.id, d.id.startsWith('UNO') ? 'uno' : 'postel');
+        return;
+      }
+      openDrawer(d);
+    };
     b.appendChild(tr);
   });
+  
   if (count === 0)
-    b.innerHTML =
-      '<tr><td colspan="5" class="empty">Nessun documento trovato corrispondente ai filtri</td></tr>';
+    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato corrispondente ai filtri</td></tr>';
 }
 
 function renderStaging() {
@@ -414,36 +377,55 @@ function renderStaging() {
   bPostel.innerHTML = "";
 
   state.queuesigned.forEach((u) => {
-    if (q && !`${u.cliente_nome_cognome} ${u.id}`.toLowerCase().includes(q))
-      return;
+    if (q && !`${u.cliente_nome_cognome} ${u.id}`.toLowerCase().includes(q)) return;
     const tr = document.createElement("tr");
     if (selectedUno?.id === u.id) tr.className = "selected";
-    tr.innerHTML = `<td><b>${u.id}</b></td><td>${u.cliente_nome_cognome}</td><td><small>${u.codice_pod || u.codice_pdr || "N/D"}</small></td>`;
-    tr.onclick = () => {
+    tr.innerHTML = `
+      <td><b>${u.id}</b></td>
+      <td>${u.cliente_nome_cognome}</td>
+      <td><small>${u.codice_pod || u.codice_pdr || "N/D"}</small></td>
+      <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
+    `;
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        deleteStaging(u.id, 'uno');
+        return;
+      }
       selectedUno = selectedUno?.id === u.id ? null : u;
       renderStaging();
       checkStickyMatch();
     };
     bUno.appendChild(tr);
   });
+
   state.queuearchived.forEach((p) => {
-    if (q && !`${p.cliente_nome_cognome} ${p.id}`.toLowerCase().includes(q))
-      return;
+    if (q && !`${p.cliente_nome_cognome} ${p.id}`.toLowerCase().includes(q)) return;
     const tr = document.createElement("tr");
     if (selectedPostel?.id === p.id) tr.className = "selected";
-    tr.innerHTML = `<td><b>${p.id}</b></td><td>${p.cliente_nome_cognome}</td><td><small>${p.codice_pod || p.codice_pdr || "N/D"}</small></td>`;
-    tr.onclick = () => {
+    tr.innerHTML = `
+      <td><b>${p.id}</b></td>
+      <td>${p.cliente_nome_cognome}</td>
+      <td><small>${p.codice_pod || p.codice_pdr || "N/D"}</small></td>
+      <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
+    `;
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        deleteStaging(p.id, 'postel');
+        return;
+      }
       selectedPostel = selectedPostel?.id === p.id ? null : p;
       renderStaging();
       checkStickyMatch();
     };
     bPostel.appendChild(tr);
   });
+  
   if (state.queuesigned.length === 0)
-    bUno.innerHTML = '<tr><td colspan="3" class="empty">Coda vuota</td></tr>';
+    bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
-    bPostel.innerHTML =
-      '<tr><td colspan="3" class="empty">Coda vuota</td></tr>';
+    bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
 }
 
 function checkStickyMatch() {
@@ -462,25 +444,16 @@ function checkStickyMatch() {
 function manualMatch(u, p) {
   const conf = confidence(u, p);
   if (u.commodity !== p.commodity) state.metrics.anom.commodity++;
-  if (
-    u.cliente_nome_cognome.trim().toLowerCase() !==
-    p.cliente_nome_cognome.trim().toLowerCase()
-  )
+  if (u.cliente_nome_cognome.trim().toLowerCase() !== p.cliente_nome_cognome.trim().toLowerCase())
     state.metrics.anom.name++;
-  if (
-    (u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) ||
-    (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr)
-  )
+  if ((u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) || (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr))
     state.metrics.anom.pod++;
 
   state.matched.unshift(finalizeMatch(u, p, "Manuale"));
   state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
   state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
   state.metrics.manual++;
-  logEvent(
-    state,
-    `Accoppiamento manuale eseguito con successo: ${u.id} + ${p.id} (Confidenza: ${conf.score}%)`,
-  );
+  logEvent(state, `Accoppiamento manuale eseguito con successo: ${u.id} + ${p.id} (Confidenza: ${conf.score}%)`);
   selectedUno = null;
   selectedPostel = null;
   checkStickyMatch();
@@ -493,18 +466,14 @@ function renderEvents() {
   const el = document.getElementById("timelineEvents");
   if (!el) return;
   el.innerHTML = state.events
-    .map(
-      (e) =>
-        `<div class="event"><time>${e.time}</time><div>${e.text}</div></div>`,
-    )
+    .map((e) => `<div class="event"><time>${e.time}</time><div>${e.text}</div></div>`)
     .join("");
 }
 
 function openDrawer(d) {
   const dr = document.getElementById("drawer");
   if (!dr) return;
-  document.getElementById("drawerTitle").innerText =
-    `Dettagli documento ${d.id}`;
+  document.getElementById("drawerTitle").innerText = `Dettagli documento ${d.id}`;
   const grid = document.getElementById("drawerMetaGrid");
   grid.innerHTML = "";
   FIELDS.forEach(([k, label]) => {
@@ -517,11 +486,11 @@ function openDrawer(d) {
     grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
   }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
-  document.getElementById("pdfPod").innerText =
-    d.codice_pod || d.codice_pdr || "N/D";
-  document.getElementById("pdfDate").innerText = d.data_firma_contratto;
+  document.getElementById("pdfPod").innerText = d.codice_pod || d.codice_pdr || "N/D";
+  document.getElementById("pdfDate").innerText = d.data_firma_contratto || 'N/D';
   dr.classList.add("open");
 }
+
 function closeDrawer() {
   document.getElementById("drawer")?.classList.remove("open");
 }
@@ -530,8 +499,7 @@ function openManualCompare() {
   if (!selectedUno || !selectedPostel) return;
   const m = document.getElementById("modalCompare");
   if (!m) return;
-  document.getElementById("compareTitle").innerText =
-    `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
+  document.getElementById("compareTitle").innerText = `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
   const b = document.getElementById("compareDiffGrid");
   b.innerHTML = "";
   FIELDS.forEach(([k, label]) => {
@@ -545,6 +513,7 @@ function openManualCompare() {
   });
   m.classList.add("open");
 }
+
 function closeModal() {
   document.getElementById("modalCompare")?.classList.remove("open");
 }
@@ -552,7 +521,7 @@ function closeModal() {
 function getManualRecord() {
   const form = document.getElementById("manualForm");
   if (!form) return null;
-  const r = { id: `MAN-${Math.floor(1000 + Math.random() * 9000)}` };
+  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
   FIELDS.forEach(([k]) => {
     const el = form.querySelector(`[name="${k}"]`);
     if (el) r[k] = el.value;
@@ -563,14 +532,16 @@ function getManualRecord() {
   }
   return r;
 }
+
 function makePostelFromUno(u) {
   return { ...u, id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
 }
+
 function sampleRecord() {
   return {
     cliente_nome_cognome: "Vittorio Emanuele",
     cliente_codice_fiscale: "VTTMNL84M01H501Z",
-    data_firma_contratto: "2026-04-01",
+    data_firma_contratto: new Date().toISOString().split('T')[0],
     codice_pod: "IT001E888888888",
     commodity: "Energia Elettrica",
     cliente_record_type_testuale: "Retail",
@@ -579,11 +550,9 @@ function sampleRecord() {
   };
 }
 
-// --- LOGICA GESTIONE CAMBIO TEMA CON EFFETTO ONDA CIRCOLARE ---
 document.getElementById("themeToggle").addEventListener("click", (e) => {
   const x = e.clientX;
   const y = e.clientY;
-
   const toggleThemeClass = () => {
     if (document.body.classList.contains("dark")) {
       document.body.classList.remove("dark");
@@ -597,36 +566,19 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
     save();
   };
 
-  // 1. Uso delle moderne API View Transition
   if (document.startViewTransition) {
     const radius = Math.hypot(window.innerWidth, window.innerHeight);
-
-    const transition = document.startViewTransition(() => {
-      toggleThemeClass();
-    });
-
+    const transition = document.startViewTransition(() => { toggleThemeClass(); });
     transition.ready.then(() => {
       document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${radius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 500,
-          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-          pseudoElement: "::view-transition-new(root)",
-        },
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 500, easing: "cubic-bezier(0.4, 0, 0.2, 1)", pseudoElement: "::view-transition-new(root)" }
       );
     });
-  }
-  // 2. Fallback classico con Pseudo-elemento e variabili CSS
-  else {
+  } else {
     document.body.style.setProperty("--clip-x", `${x}px`);
     document.body.style.setProperty("--clip-y", `${y}px`);
     document.body.classList.add("animating-theme");
-
     setTimeout(() => {
       toggleThemeClass();
       document.body.classList.remove("animating-theme");
@@ -634,7 +586,6 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
   }
 });
 
-// Setup iniziale degli eventi e del tema salvato
 window.addEventListener("DOMContentLoaded", () => {
   if (state.dark) {
     document.body.classList.add("dark");
@@ -643,23 +594,21 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove("dark");
     document.getElementById("themeToggle").innerHTML = "🌙 Dark mode";
   }
+  
   initData();
+  
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.onclick = () => {
-      document
-        .querySelectorAll(".nav-item")
-        .forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      document
-        .querySelectorAll(".view")
-        .forEach((v) => v.classList.remove("active"));
+      document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
       const target = btn.getAttribute("data-view");
       document.getElementById(target)?.classList.add("active");
       render();
     };
   });
-  document.getElementById("btnUno").onclick = () =>
-    document.getElementById("csvInput").click();
+  
+  document.getElementById("btnUno").onclick = () => document.getElementById("csvInput").click();
   document.getElementById("csvInput").onchange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -680,23 +629,16 @@ window.addEventListener("DOMContentLoaded", () => {
     reader.readAsText(file);
     e.target.value = "";
   };
+  
   document.getElementById("btnPostel").onclick = () => {
-    const lastUno =
-      state.queuesigned.find((x) => x.id === state.lastUnoId) ||
-      state.queuesigned[state.queuesigned.length - 1];
+    const lastUno = state.queuesigned[state.queuesigned.length - 1];
     let p;
     if (lastUno) {
       p = makePostelFromUno(lastUno);
-      logEvent(
-        state,
-        `Record Postel simulato generato, compatibile con ${lastUno.id}`,
-      );
+      logEvent(state, `Record Postel simulato generato, compatibile con ${lastUno.id}`);
     } else {
       p = { ...sampleRecord(), id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
-      logEvent(
-        state,
-        "Record Postel simulato generato (nessun contratto Uno Energy recente da abbinare)",
-      );
+      logEvent(state, "Record Postel simulato generato");
     }
     state.queuearchived.push(p);
     state.lastPostelId = p.id;
@@ -704,39 +646,40 @@ window.addEventListener("DOMContentLoaded", () => {
     render();
     toast(`Record Postel ${p.id} importato in staging`);
   };
+  
   document.getElementById("btnAutoMatch").onclick = () => {
     const count = autoMatchAll();
     save();
     render();
-    if (count > 0)
-      toast(`Match automatico: ${count} contratti riconciliati`);
-    else
-      toast("Nessuna coppia con confidenza ≥ 85% trovata in staging");
+    if (count > 0) toast(`Match automatico: ${count} contratti riconciliati`);
+    else toast("Nessuna coppia con confidenza ≥ 85% trovata in staging");
   };
+  
   document.getElementById("closeDrawer").onclick = closeDrawer;
   document.getElementById("resetDemo").onclick = () => {
     localStorage.removeItem("dockbridgePremiumState");
     location.reload();
   };
   document.getElementById("closeModal").onclick = closeModal;
-  document.getElementById("btnStickyMatchExec").onclick = () =>
-    manualMatch(selectedUno, selectedPostel);
+  document.getElementById("btnStickyMatchExec").onclick = () => manualMatch(selectedUno, selectedPostel);
 
   ["docSearch", "docCommodity", "docDate", "stagingSearch"].forEach((idv) => {
     document.getElementById(idv)?.addEventListener("input", render);
   });
+  
   document.getElementById("btnManualMatch").onclick = openManualCompare;
   document.getElementById("createUno").onclick = () => {
     const r = getManualRecord();
     if (r) {
       state.queuesigned.push(r);
       state.lastUnoId = r.id;
-      logEvent(state, "Record Uno Energy creato");
+      logEvent(state, `Record Uno Energy creato manualmente: ${r.id}`);
       save();
       render();
-      toast("Record creato");
+      toast("Record creato in staging");
     }
   };
+  
   document.getElementById("fillDemo").onclick = () => {
     const r = sampleRecord();
     FIELDS.forEach(([k]) => {
@@ -744,5 +687,6 @@ window.addEventListener("DOMContentLoaded", () => {
       if (el) el.value = r[k] || "";
     });
   };
+  
   render();
 });
