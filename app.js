@@ -29,6 +29,7 @@ function defaultState() {
     queuesigned: [],
     queuearchived: [],
     files: [],
+    matched: [],
     events: [],
     metrics: {
       auto: 0,
@@ -57,6 +58,7 @@ function normalizeState(loaded) {
   merged.queuesigned = Array.isArray(loaded.queuesigned) ? loaded.queuesigned : [];
   merged.queuearchived = Array.isArray(loaded.queuearchived) ? loaded.queuearchived : [];
   merged.files = Array.isArray(loaded.files) ? loaded.files : [];
+  merged.matched = Array.isArray(loaded.matched) ? loaded.matched : [];
   merged.events = Array.isArray(loaded.events) ? loaded.events : [];
   const m = loaded.metrics && typeof loaded.metrics === "object" ? loaded.metrics : {};
   const a = m.anom && typeof m.anom === "object" ? m.anom : {};
@@ -210,6 +212,26 @@ function initData() {
   }
 }
 
+// Costruisce il documento finale che resta visibile in Consultazione dopo
+// l'abbinamento, con la percentuale "congelata" al momento del match
+// (così non cambia più mentre la coda di staging si svuota).
+function finalizeMatch(u, p, type) {
+  const conf = confidence(u, p);
+  return {
+    id: `DOC-${Math.floor(10000 + Math.random() * 90000)}`,
+    cliente_nome_cognome: u.cliente_nome_cognome,
+    commodity: u.commodity,
+    data_firma_contratto: u.data_firma_contratto,
+    codice_pod: u.codice_pod,
+    codice_pdr: u.codice_pdr,
+    uno_id: u.id,
+    postel_id: p.id,
+    tipo_match: type,
+    match_score: conf.score,
+    matched_at: new Date().toLocaleString("it-IT"),
+  };
+}
+
 function autoMatchAll(silent = false) {
   let count = 0;
   for (let i = state.queuesigned.length - 1; i >= 0; i--) {
@@ -224,6 +246,7 @@ function autoMatchAll(silent = false) {
       }
     });
     if (best && bestScore >= 85) {
+      state.matched.unshift(finalizeMatch(u, best, "Automatico"));
       state.queuesigned.splice(i, 1);
       const idx = state.queuearchived.indexOf(best);
       if (idx > -1) state.queuearchived.splice(idx, 1);
@@ -350,19 +373,30 @@ function renderConsultazione() {
   if (!b) return;
   b.innerHTML = "";
   const all = [
-    ...state.queuesigned.map((d) => ({ d, opposite: state.queuearchived })),
-    ...state.queuearchived.map((d) => ({ d, opposite: state.queuesigned })),
+    ...state.queuesigned.map((d) => ({
+      d,
+      score: bestMatchScore(d, state.queuearchived),
+      final: false,
+    })),
+    ...state.queuearchived.map((d) => ({
+      d,
+      score: bestMatchScore(d, state.queuesigned),
+      final: false,
+    })),
+    ...state.matched.map((d) => ({ d, score: d.match_score, final: true })),
   ];
   let count = 0;
-  all.forEach(({ d, opposite }) => {
+  all.forEach(({ d, score, final }) => {
     if (comm && d.commodity !== comm) return;
     const matchStr =
       `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
-    const score = bestMatchScore(d, opposite);
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td>${matchBadge(score)}</td>`;
+    const badge = final
+      ? `${matchBadge(score)} <small title="Abbinamento confermato (${d.tipo_match})">✓</small>`
+      : matchBadge(score);
+    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td>${badge}</td>`;
     tr.onclick = () => openDrawer(d);
     b.appendChild(tr);
   });
@@ -439,6 +473,7 @@ function manualMatch(u, p) {
   )
     state.metrics.anom.pod++;
 
+  state.matched.unshift(finalizeMatch(u, p, "Manuale"));
   state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
   state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
   state.metrics.manual++;
@@ -477,6 +512,10 @@ function openDrawer(d) {
       grid.innerHTML += `<div class="meta"><small>${label}</small><b>${d[k]}</b></div>`;
     }
   });
+  if (d.tipo_match) {
+    grid.innerHTML += `<div class="meta"><small>Tipo abbinamento</small><b>${d.tipo_match} (${d.match_score}%)</b></div>`;
+    grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
+  }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
   document.getElementById("pdfPod").innerText =
     d.codice_pod || d.codice_pdr || "N/D";
