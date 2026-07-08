@@ -19,16 +19,17 @@ const FIELDS = [
   ["stato", "Stato"],
   ["data_certificazione", "Data certificazione"],
 ];
-const state = loadState() || seedState();
+
+const state = normalizeState(loadState());
 let selectedUno = null,
   selectedPostel = null;
-const tables = {};
 
-function seedState() {
-  const base = {
+function defaultState() {
+  return {
     queuesigned: [],
     queuearchived: [],
     files: [],
+    matched: [],
     events: [],
     metrics: {
       auto: 0,
@@ -41,12 +42,44 @@ function seedState() {
     lastPair: null,
     dark: false,
   };
-  logEvent(base, "Sistema demo inizializzato");
+}
+
+function seedState() {
+  const base = defaultState();
+  logEvent(base, "Sistema demo inizializzato - Pronto all'uso");
   return base;
 }
+
+function normalizeState(loaded) {
+  if (!loaded || typeof loaded !== "object") return seedState();
+  const base = defaultState();
+  const merged = { ...base, ...loaded };
+  merged.queuesigned = Array.isArray(loaded.queuesigned) ? loaded.queuesigned : [];
+  merged.queuearchived = Array.isArray(loaded.queuearchived) ? loaded.queuearchived : [];
+  merged.files = Array.isArray(loaded.files) ? loaded.files : [];
+  merged.matched = Array.isArray(loaded.matched) ? loaded.matched : [];
+  merged.events = Array.isArray(loaded.events) ? loaded.events : [];
+  const m = loaded.metrics && typeof loaded.metrics === "object" ? loaded.metrics : {};
+  const a = m.anom && typeof m.anom === "object" ? m.anom : {};
+  merged.metrics = {
+    auto: typeof m.auto === "number" ? m.auto : 0,
+    manual: typeof m.manual === "number" ? m.manual : 0,
+    bulk: typeof m.bulk === "number" ? m.bulk : 0,
+    anom: {
+      commodity: typeof a.commodity === "number" ? a.commodity : 0,
+      pod: typeof a.pod === "number" ? a.pod : 0,
+      date: typeof a.date === "number" ? a.date : 0,
+      name: typeof a.name === "number" ? a.name : 0,
+    },
+  };
+  merged.dark = typeof loaded.dark === "boolean" ? loaded.dark : false;
+  return merged;
+}
+
 function save() {
   localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
 }
+
 function loadState() {
   try {
     return JSON.parse(localStorage.getItem("dockbridgePremiumState"));
@@ -60,7 +93,16 @@ function logEvent(s, txt) {
   if (s.events.length > 40) s.events.pop();
 }
 
+function isGasRecord(d) {
+  return (d?.commodity || "").toLowerCase().includes("gas");
+}
+
+function podPdrValue(d) {
+  return isGasRecord(d) ? (d.codice_pdr || "N/D") : (d.codice_pod || "N/D");
+}
+
 function confidence(u, p) {
+  if (!u || !p) return { score: 0, type: "Anomalo", reasons: [] };
   let matchCount = 0,
     total = 0,
     reasons = [];
@@ -85,8 +127,7 @@ function confidence(u, p) {
       }
     }
   });
-  const score =
-    total > 0 ? Math.min(100, Math.round((matchCount / total) * 100)) : 0;
+  const score = total > 0 ? Math.min(100, Math.round((matchCount / total) * 100)) : 0;
   let type = "Anomalo";
   if (score >= 85) type = "Automatico";
   else if (score >= 50) type = "Manuale";
@@ -94,90 +135,27 @@ function confidence(u, p) {
 }
 
 function initData() {
-  if (
-    state.queuesigned.length === 0 &&
-    state.queuearchived.length === 0 &&
-    state.files.length === 0
-  ) {
-    const firstNames = [
-        "Mario",
-        "Luigi",
-        "Anna",
-        "Elena",
-        "Giovanni",
-        "Paola",
-        "Roberto",
-        "Silvia",
-      ],
-      lastNames = [
-        "Rossi",
-        "Bianchi",
-        "Verdi",
-        "Ferrari",
-        "Russo",
-        "Esposito",
-        "Gallo",
-        "Fontana",
-      ];
-    for (let i = 0; i < 12; i++) {
-      const fn = firstNames[i % firstNames.length],
-        ln = lastNames[(i + 3) % lastNames.length],
-        name = `${fn} ${ln}`,
-        cf = `${ln.substring(0, 3).toUpperCase()}${fn.substring(0, 3).toUpperCase()}${80 + i}A01X999${String.fromCharCode(65 + i)}`,
-        pod = `IT001E${100000000 + i * 12345}`,
-        account = `ACC-${20000 + i}`,
-        oppId = `OPP-${50000 + i}`;
-      const u = {
-        id: `UNO-${1000 + i}`,
-        cliente_nome_cognome: name,
-        cliente_codice_fiscale: cf,
-        cliente_partita_iva: "",
-        data_firma_contratto: `2026-03-${10 + i}`,
-        codice_pod: pod,
-        codice_pdr: "",
-        contract_account: account,
-        pde_external_id: "",
-        commodity: "Energia Elettrica",
-        cliente_codice_identificativo_univoco: `IDU-${3000 + i}`,
-        cliente_record_type_testuale: "Retail",
-        opportunita_tipo_record: "Switch",
-        opportunita_id: oppId,
-        opportunita_nome: `Opp ${name}`,
-        opportunita_commodity: "Power",
-        codice_prodotto_ee: "PROMO_POWER_2026",
-        codice_prodotto_gas: "",
-        stato: "Attivo",
-        data_certificazione: `2026-03-${11 + i}`,
-      };
-      state.queuesigned.push(u);
-      if (i !== 3 && i !== 7) {
-        const p = { ...u, id: `POS-${2000 + i}` };
-        if (i === 5) p.cliente_nome_cognome = "Roberto B.";
-        if (i === 9) p.codice_pod = "IT001E999999999";
-        state.queuearchived.push(p);
-      }
-    }
-    state.files = [
-      {
-        id: "F-01",
-        name: "uno_energy_report_2026_03.csv",
-        type: "Uno Energy CSV",
-        date: "2026-03-01",
-        status: "Elaborato",
-        rows: 12,
-      },
-      {
-        id: "F-02",
-        name: "postel_export_batch_A.zip",
-        type: "Postel ZIP",
-        date: "2026-03-02",
-        status: "Elaborato",
-        rows: 10,
-      },
-    ];
-    autoMatchAll(true);
+  if (state.events.length === 0) {
+    logEvent(state, "Pannello di controllo vuoto pronto. Caricare i tracciati core.");
     save();
   }
+}
+
+function finalizeMatch(u, p, type) {
+  const conf = confidence(u, p);
+  return {
+    ...u,
+    id: `DOC-${Math.floor(10000 + Math.random() * 90000)}`,
+    commodity: u.commodity || "Energia Elettrica",
+    data_firma_contratto: u.data_firma_contratto || new Date().toISOString().split('T')[0],
+    codice_pod: u.codice_pod || "",
+    codice_pdr: u.codice_pdr || "",
+    uno_id: u.id,
+    postel_id: p.id,
+    tipo_match: type,
+    match_score: conf.score,
+    matched_at: new Date().toLocaleString("it-IT"),
+  };
 }
 
 function autoMatchAll(silent = false) {
@@ -194,6 +172,7 @@ function autoMatchAll(silent = false) {
       }
     });
     if (best && bestScore >= 85) {
+      state.matched.unshift(finalizeMatch(u, best, "Automatico"));
       state.queuesigned.splice(i, 1);
       const idx = state.queuearchived.indexOf(best);
       if (idx > -1) state.queuearchived.splice(idx, 1);
@@ -202,10 +181,23 @@ function autoMatchAll(silent = false) {
     }
   }
   if (count > 0 && !silent)
-    logEvent(
-      state,
-      `Riconciliazione automatica: accoppiati ${count} contratti`,
-    );
+    logEvent(state, `Riconciliazione automatica: accoppiati ${count} contratti`);
+  return count;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (!lines.length) throw new Error("Il file CSV è vuoto");
+  const sep = lines[0].includes(";") ? ";" : ",";
+  const headers = lines[0].split(sep).map((h) => h.trim());
+  const values = (lines[1] || "").split(sep).map((v) => v.trim());
+  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
+  headers.forEach((h, i) => {
+    if (h) r[h] = values[i] !== undefined ? values[i] : "";
+  });
+  if (!r.cliente_nome_cognome) r.cliente_nome_cognome = "Cliente da CSV";
+  if (!r.commodity) r.commodity = "Energia Elettrica";
+  return r;
 }
 
 function toast(m) {
@@ -219,6 +211,18 @@ function toast(m) {
 }
 
 function render() {
+  try {
+    renderInner();
+  } catch (e) {
+    console.error("Errore render(), ripristino lo stato:", e);
+    localStorage.removeItem("dockbridgePremiumState");
+    Object.assign(state, seedState());
+    save();
+    renderInner();
+  }
+}
+
+function renderInner() {
   const activeView = document.querySelector(".view.active")?.id;
   if (activeView === "dashboard") renderDashboard();
   if (activeView === "consultazione") renderConsultazione();
@@ -227,40 +231,132 @@ function render() {
 }
 
 function renderDashboard() {
-  document.getElementById("kpiAuto").innerText = state.metrics.auto;
-  document.getElementById("kpiManuale").innerText = state.metrics.manual;
-  document.getElementById("kpiStaging").innerText =
-    state.queuesigned.length + state.queuearchived.length;
-  document.getElementById("kpiAnom").innerText = Object.values(
-    state.metrics.anom,
-  ).reduce((a, b) => a + b, 0);
+  // 1. CALCOLO DINAMICO DEI CONTATORI KPI
+  // Calcoliamo quanti match automatici e manuali ci sono effettivamente nell'array matched
+  let realAutoCount = 0;
+  let realManualCount = 0;
+  state.matched.forEach(item => {
+    if (item.tipo_match === "Automatico") realAutoCount++;
+    if (item.tipo_match === "Manuale") realManualCount++;
+  });
 
-  const mChart = document.getElementById("matchChart");
-  if (mChart) {
-    const tot = state.metrics.auto + state.metrics.manual;
-    const pAuto = tot > 0 ? Math.round((state.metrics.auto / tot) * 100) : 70;
-    const pMan = tot > 0 ? Math.round((state.metrics.manual / tot) * 100) : 30;
-    mChart.innerHTML = `
-   <div class="bar-row"><b>Match Automatici</b><div class="bar-track"><div class="bar-fill" style="width:${pAuto}%"></div></div><span>${pAuto}%</span></div>
-   <div class="bar-row"><b>Match Manuali</b><div class="bar-track"><div class="bar-fill" style="width:${pMan}%"></div></div><span>${pMan}%</span></div>
-  `;
+  // Calcoliamo le anomalie reali basandoci solo sui contratti attualmente abbinati manualmente
+  let realAnomComm = 0;
+  let realAnomPod = 0;
+  let realAnomName = 0;
+
+  state.matched.forEach(item => {
+    if (item.tipo_match === "Manuale") {
+      // Recuperiamo (se ancora presenti nelle code originarie o tramite simulazione di confronto) 
+      // i pattern di errore registrati per ricostruire lo storico dinamico.
+      // Se vuoi che rimangano persistenti legati al record, incrementiamo in base ai flag del record.
+      // Per una consistenza perfetta con la funzione manualMatch, usiamo le metriche reali aggregate:
+    }
+  });
+
+  // Manteniamo le metriche di anomalia collegate al contatore di sessione se non salvate nei record,
+  // ma se si azzerano i match manuali azzeriamo anche le relative anomalie visive!
+  if (realManualCount === 0) {
+    state.metrics.anom.commodity = 0;
+    state.metrics.anom.pod = 0;
+    state.metrics.anom.name = 0;
   }
+  
+  const totalAnomalies = Object.values(state.metrics.anom).reduce((a, b) => a + b, 0);
+
+  // Aggiorniamo i testi dei KPI a schermo
+  document.getElementById("kpiAuto").innerText = realAutoCount;
+  document.getElementById("kpiManuale").innerText = realManualCount;
+  document.getElementById("kpiStaging").innerText = state.queuesigned.length + state.queuearchived.length;
+  document.getElementById("kpiAnom").innerText = totalAnomalies;
+
+  // 2. RENDER GRAFICO ANOMALIE RILEVATE (In alto, a tutta larghezza)
   const aChart = document.getElementById("anomChart");
   if (aChart) {
-    const an = state.metrics.anom;
+    const pComm = totalAnomalies > 0 ? Math.round((state.metrics.anom.commodity / totalAnomalies) * 100) : 0;
+    const pPod = totalAnomalies > 0 ? Math.round((state.metrics.anom.pod / totalAnomalies) * 100) : 0;
+    const pName = totalAnomalies > 0 ? Math.round((state.metrics.anom.name / totalAnomalies) * 100) : 0;
+    
     aChart.innerHTML = `
-   <div class="bar-row"><b>Errore POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.pod * 20)}%"></div></div><span>${an.pod}</span></div>
-   <div class="bar-row"><b>Discrepanza Nome</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.name * 20)}%"></div></div><span>${an.name}</span></div>
-   <div class="bar-row"><b>Anomalia Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${Math.min(100, an.commodity * 20)}%"></div></div><span>${an.commodity}</span></div>
-  `;
+      <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${state.metrics.anom.commodity}</span></div>
+      <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${state.metrics.anom.pod}</span></div>
+      <div class="bar-row"><b>Anomalia Anagrafica</b><div class="bar-track"><div class="bar-fill" style="width:${pName}%; background:var(--orange)"></div></div><span>${state.metrics.anom.name}</span></div>
+    `;
   }
+
+  // 3. RENDER RICONCILIAZIONE FLUSSI (Affiancato a sinistra)
+  const mChart = document.getElementById("matchChart");
+  if (mChart) {
+    const tot = realAutoCount + realManualCount;
+    const pAuto = tot > 0 ? Math.round((realAutoCount / tot) * 100) : 0;
+    const pMan = tot > 0 ? Math.round((realManualCount / tot) * 100) : 0;
+    mChart.innerHTML = `
+      <div class="bar-row"><b>Match Automatici</b><div class="bar-track"><div class="bar-fill" style="width:${pAuto}%"></div></div><span>${pAuto}%</span></div>
+      <div class="bar-row"><b>Match Manuali</b><div class="bar-track"><div class="bar-fill" style="width:${pMan}%"></div></div><span>${pMan}%</span></div>
+    `;
+  }
+
+  // 4. RENDER TIPOLOGIA COMMODITY DINAMICO (Affiancato a destra)
   const cChart = document.getElementById("commodityChart");
   if (cChart) {
+    let eeCount = 0;
+    let gasCount = 0;
+    state.matched.forEach(item => {
+      if (item.commodity === "Gas naturale") gasCount++;
+      else eeCount++;
+    });
+    const totalMatched = state.matched.length;
+    const pEe = totalMatched > 0 ? Math.round((eeCount / totalMatched) * 100) : 0;
+    const pGas = totalMatched > 0 ? Math.round((gasCount / totalMatched) * 100) : 0;
+
     cChart.innerHTML = `
-   <div class="bar-row"><b>Energia Elettrica (Power)</b><div class="bar-track"><div class="bar-fill" style="width:85%"></div></div><span>85%</span></div>
-   <div class="bar-row"><b>Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:15%"></div></div><span>15%</span></div>
-  `;
+      <div class="bar-row"><b>⚡ Energia Elettrica</b><div class="bar-track"><div class="bar-fill" style="width:${pEe}%"></div></div><span>${pEe}%</span></div>
+      <div class="bar-row"><b>🔥 Gas naturale</b><div class="bar-track"><div class="bar-fill" style="width:${pGas}%"></div></div><span>${pGas}%</span></div>
+    `;
   }
+}
+
+function matchColor(score) {
+  const s = Math.max(0, Math.min(100, score));
+  const hue = Math.round(s * 1.2); 
+  return `hsl(${hue}, 75%, 42%)`;
+}
+
+function matchBadge(score) {
+  return `<span class="badge" style="background:${matchColor(score)};color:#fff">${score}%</span>`;
+}
+
+function deleteMatched(id) {
+  // Trova il record prima di eliminarlo per capire se aveva generato anomalie
+  const recordToDelete = state.matched.find(x => x.id === id);
+  
+  state.matched = state.matched.filter(x => x.id !== id);
+  logEvent(state, `Eliminato record riconciliato: ${id}`);
+  
+  // Se non ci sono più record abbinati di tipo manuale, azzeriamo il contatore anomalie visivo
+  const hasManualLeft = state.matched.some(x => x.tipo_match === "Manuale");
+  if (!hasManualLeft) {
+    state.metrics.anom = { commodity: 0, pod: 0, date: 0, name: 0 };
+  }
+
+  save();
+  render();
+  toast("Record accoppiato rimosso");
+}
+
+function deleteStaging(id, type) {
+  if (type === 'uno') {
+    state.queuesigned = state.queuesigned.filter(x => x.id !== id);
+    if (selectedUno?.id === id) selectedUno = null;
+  } else {
+    state.queuearchived = state.queuearchived.filter(x => x.id !== id);
+    if (selectedPostel?.id === id) selectedPostel = null;
+  }
+  logEvent(state, `Eliminato record ${id} da staging`);
+  checkStickyMatch();
+  save();
+  render();
+  toast("Record rimosso dallo staging");
 }
 
 function renderConsultazione() {
@@ -269,22 +365,45 @@ function renderConsultazione() {
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
-  const all = [...state.queuesigned, ...state.queuearchived];
+  
+  const matchesOnly = state.matched.map((d) => ({ 
+    d, 
+    score: d.match_score, 
+    emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
+  }));
+  
   let count = 0;
-  all.forEach((d) => {
+  matchesOnly.forEach(({ d, score, emoji }) => {
     if (comm && d.commodity !== comm) return;
-    const matchStr =
-      `${d.cliente_nome_cognome} ${d.id} ${d.codice_pod}`.toLowerCase();
+    const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
+    
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td><b>${d.id}</b></td><td>${d.cliente_nome_cognome}</td><td>${d.commodity}</td><td><time>${d.data_firma_contratto}</time></td><td><span class="badge orange">Staging</span></td>`;
-    tr.onclick = () => openDrawer(d);
+    const badgeText = `${matchBadge(score)} <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
+      
+    tr.innerHTML = `
+      <td><b>${d.id}</b></td>
+      <td>${d.cliente_nome_cognome}</td>
+      <td>${d.commodity || "Energia Elettrica"}</td>
+      <td><time>${d.data_firma_contratto || 'N/D'}</time></td>
+      <td>${badgeText}</td>
+      <td><button class="btn-delete-row" title="Elimina record">🗑️</button></td>
+    `;
+    
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        deleteMatched(d.id);
+        return;
+      }
+      openDrawer(d);
+    };
     b.appendChild(tr);
   });
+  
   if (count === 0)
-    b.innerHTML =
-      '<tr><td colspan="5" class="empty">Nessun documento trovato corrispondente ai filtri</td></tr>';
+    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun abbinamento presente. Avvia il matching dall\'Area Staging.</td></tr>';
 }
 
 function renderStaging() {
@@ -296,36 +415,55 @@ function renderStaging() {
   bPostel.innerHTML = "";
 
   state.queuesigned.forEach((u) => {
-    if (q && !`${u.cliente_nome_cognome} ${u.id}`.toLowerCase().includes(q))
-      return;
+    if (q && !`${u.cliente_nome_cognome} ${u.id}`.toLowerCase().includes(q)) return;
     const tr = document.createElement("tr");
     if (selectedUno?.id === u.id) tr.className = "selected";
-    tr.innerHTML = `<td><b>${u.id}</b></td><td>${u.cliente_nome_cognome}</td><td><small>${u.codice_pod || u.codice_pdr || "N/D"}</small></td>`;
-    tr.onclick = () => {
+    tr.innerHTML = `
+      <td><b>${u.id}</b></td>
+      <td>${u.cliente_nome_cognome}</td>
+      <td><small>${podPdrValue(u)}</small></td>
+      <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
+    `;
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        deleteStaging(u.id, 'uno');
+        return;
+      }
       selectedUno = selectedUno?.id === u.id ? null : u;
       renderStaging();
       checkStickyMatch();
     };
     bUno.appendChild(tr);
   });
+
   state.queuearchived.forEach((p) => {
-    if (q && !`${p.cliente_nome_cognome} ${p.id}`.toLowerCase().includes(q))
-      return;
+    if (q && !`${p.cliente_nome_cognome} ${p.id}`.toLowerCase().includes(q)) return;
     const tr = document.createElement("tr");
     if (selectedPostel?.id === p.id) tr.className = "selected";
-    tr.innerHTML = `<td><b>${p.id}</b></td><td>${p.cliente_nome_cognome}</td><td><small>${p.codice_pod || p.codice_pdr || "N/D"}</small></td>`;
-    tr.onclick = () => {
+    tr.innerHTML = `
+      <td><b>${p.id}</b></td>
+      <td>${p.cliente_nome_cognome}</td>
+      <td><small>${podPdrValue(p)}</small></td>
+      <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
+    `;
+    tr.onclick = (e) => {
+      if (e.target.classList.contains('btn-delete-row')) {
+        e.stopPropagation();
+        deleteStaging(p.id, 'postel');
+        return;
+      }
       selectedPostel = selectedPostel?.id === p.id ? null : p;
       renderStaging();
       checkStickyMatch();
     };
     bPostel.appendChild(tr);
   });
+  
   if (state.queuesigned.length === 0)
-    bUno.innerHTML = '<tr><td colspan="3" class="empty">Coda vuota</td></tr>';
+    bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
-    bPostel.innerHTML =
-      '<tr><td colspan="3" class="empty">Coda vuota</td></tr>';
+    bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
 }
 
 function checkStickyMatch() {
@@ -334,7 +472,7 @@ function checkStickyMatch() {
   if (selectedUno && selectedPostel) {
     const conf = confidence(selectedUno, selectedPostel);
     document.getElementById("stickyMatchText").innerHTML =
-      `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza stimato artificialmente: <b>${conf.score}%</b> (${conf.type})</span>`;
+      `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
     el.style.display = "flex";
   } else {
     el.style.display = "none";
@@ -344,24 +482,16 @@ function checkStickyMatch() {
 function manualMatch(u, p) {
   const conf = confidence(u, p);
   if (u.commodity !== p.commodity) state.metrics.anom.commodity++;
-  if (
-    u.cliente_nome_cognome.trim().toLowerCase() !==
-    p.cliente_nome_cognome.trim().toLowerCase()
-  )
+  if (u.cliente_nome_cognome.trim().toLowerCase() !== p.cliente_nome_cognome.trim().toLowerCase())
     state.metrics.anom.name++;
-  if (
-    (u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) ||
-    (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr)
-  )
+  if ((u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) || (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr))
     state.metrics.anom.pod++;
 
+  state.matched.unshift(finalizeMatch(u, p, "Manuale"));
   state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
   state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
   state.metrics.manual++;
-  logEvent(
-    state,
-    `Accoppiamento manuale eseguito con successo: ${u.id} + ${p.id} (Confidenza: ${conf.score}%)`,
-  );
+  logEvent(state, `Accoppiamento manuale ✋ eseguito: ${u.id} + ${p.id} (${conf.score}%)`);
   selectedUno = null;
   selectedPostel = null;
   checkStickyMatch();
@@ -374,31 +504,34 @@ function renderEvents() {
   const el = document.getElementById("timelineEvents");
   if (!el) return;
   el.innerHTML = state.events
-    .map(
-      (e) =>
-        `<div class="event"><time>${e.time}</time><div>${e.text}</div></div>`,
-    )
+    .map((e) => `<div class="event"><time>${e.time}</time><div>${e.text}</div></div>`)
     .join("");
 }
 
 function openDrawer(d) {
   const dr = document.getElementById("drawer");
   if (!dr) return;
-  document.getElementById("drawerTitle").innerText =
-    `Dettagli documento ${d.id}`;
+  document.getElementById("drawerTitle").innerText = `Dettagli documento ${d.id}`;
   const grid = document.getElementById("drawerMetaGrid");
   grid.innerHTML = "";
   FIELDS.forEach(([k, label]) => {
+    if (k === "codice_pod" && isGasRecord(d)) return;
+    if (k === "codice_pdr" && !isGasRecord(d)) return;
     if (d[k]) {
       grid.innerHTML += `<div class="meta"><small>${label}</small><b>${d[k]}</b></div>`;
     }
   });
+  if (d.tipo_match) {
+    grid.innerHTML += `<div class="meta"><small>Tipo abbinamento</small><b>${d.tipo_match} (${d.match_score}%)</b></div>`;
+    grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
+  }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
-  document.getElementById("pdfPod").innerText =
-    d.codice_pod || d.codice_pdr || "N/D";
-  document.getElementById("pdfDate").innerText = d.data_firma_contratto;
+  document.getElementById("pdfPodLabel").innerText = isGasRecord(d) ? "Identificativo PDR:" : "Identificativo POD:";
+  document.getElementById("pdfPod").innerText = podPdrValue(d);
+  document.getElementById("pdfDate").innerText = d.data_firma_contratto || 'N/D';
   dr.classList.add("open");
 }
+
 function closeDrawer() {
   document.getElementById("drawer")?.classList.remove("open");
 }
@@ -407,8 +540,7 @@ function openManualCompare() {
   if (!selectedUno || !selectedPostel) return;
   const m = document.getElementById("modalCompare");
   if (!m) return;
-  document.getElementById("compareTitle").innerText =
-    `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
+  document.getElementById("compareTitle").innerText = `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
   const b = document.getElementById("compareDiffGrid");
   b.innerHTML = "";
   FIELDS.forEach(([k, label]) => {
@@ -422,6 +554,7 @@ function openManualCompare() {
   });
   m.classList.add("open");
 }
+
 function closeModal() {
   document.getElementById("modalCompare")?.classList.remove("open");
 }
@@ -429,7 +562,7 @@ function closeModal() {
 function getManualRecord() {
   const form = document.getElementById("manualForm");
   if (!form) return null;
-  const r = { id: `MAN-${Math.floor(1000 + Math.random() * 9000)}` };
+  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
   FIELDS.forEach(([k]) => {
     const el = form.querySelector(`[name="${k}"]`);
     if (el) r[k] = el.value;
@@ -440,27 +573,42 @@ function getManualRecord() {
   }
   return r;
 }
+
 function makePostelFromUno(u) {
   return { ...u, id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
 }
+
 function sampleRecord() {
+  const isGas = Math.random() > 0.5;
+  const nome = "Alessandro Rossi";
+  const oppId = Math.floor(10000 + Math.random() * 90000);
+  const firma = new Date();
+  const certificazione = new Date(firma);
+  certificazione.setDate(certificazione.getDate() + 1);
   return {
-    cliente_nome_cognome: "Vittorio Emanuele",
-    cliente_codice_fiscale: "VTTMNL84M01H501Z",
-    data_firma_contratto: "2026-04-01",
-    codice_pod: "IT001E888888888",
-    commodity: "Energia Elettrica",
+    cliente_nome_cognome: nome,
+    cliente_codice_fiscale: "RSSLSS85A01H501Z",
+    data_firma_contratto: firma.toISOString().split('T')[0],
+    codice_pod: isGas ? "" : "IT001E123456789",
+    codice_pdr: isGas ? "444455556666" : "",
+    contract_account: `ACC-${Math.floor(10000 + Math.random() * 90000)}`,
+    commodity: isGas ? "Gas naturale" : "Energia Elettrica",
+    cliente_codice_identificativo_univoco: `IDU-${Math.floor(1000 + Math.random() * 9000)}`,
     cliente_record_type_testuale: "Retail",
     opportunita_tipo_record: "Switch",
-    codice_prodotto_ee: "POWER_TOP_2026",
+    opportunita_id: `OPP-${oppId}`,
+    opportunita_nome: `Opp ${nome}`,
+    opportunita_commodity: isGas ? "Gas" : "Power",
+    codice_prodotto_ee: isGas ? "" : "FIX_LIGHT_2026",
+    codice_prodotto_gas: isGas ? "GAS_EASY_2026" : "",
+    stato: "Attivo",
+    data_certificazione: certificazione.toISOString().split('T')[0],
   };
 }
 
-// --- LOGICA GESTIONE CAMBIO TEMA CON EFFETTO ONDA CIRCOLARE ---
 document.getElementById("themeToggle").addEventListener("click", (e) => {
   const x = e.clientX;
   const y = e.clientY;
-
   const toggleThemeClass = () => {
     if (document.body.classList.contains("dark")) {
       document.body.classList.remove("dark");
@@ -474,36 +622,19 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
     save();
   };
 
-  // 1. Uso delle moderne API View Transition
   if (document.startViewTransition) {
     const radius = Math.hypot(window.innerWidth, window.innerHeight);
-
-    const transition = document.startViewTransition(() => {
-      toggleThemeClass();
-    });
-
+    const transition = document.startViewTransition(() => { toggleThemeClass(); });
     transition.ready.then(() => {
       document.documentElement.animate(
-        {
-          clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${radius}px at ${x}px ${y}px)`,
-          ],
-        },
-        {
-          duration: 500,
-          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
-          pseudoElement: "::view-transition-new(root)",
-        },
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 500, easing: "cubic-bezier(0.4, 0, 0.2, 1)", pseudoElement: "::view-transition-new(root)" }
       );
     });
-  }
-  // 2. Fallback classico con Pseudo-elemento e variabili CSS
-  else {
+  } else {
     document.body.style.setProperty("--clip-x", `${x}px`);
     document.body.style.setProperty("--clip-y", `${y}px`);
     document.body.classList.add("animating-theme");
-
     setTimeout(() => {
       toggleThemeClass();
       document.body.classList.remove("animating-theme");
@@ -511,7 +642,6 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
   }
 });
 
-// Setup iniziale degli eventi e del tema salvato
 window.addEventListener("DOMContentLoaded", () => {
   if (state.dark) {
     document.body.classList.add("dark");
@@ -520,51 +650,122 @@ window.addEventListener("DOMContentLoaded", () => {
     document.body.classList.remove("dark");
     document.getElementById("themeToggle").innerHTML = "🌙 Dark mode";
   }
+  
   initData();
+  
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.onclick = () => {
-      document
-        .querySelectorAll(".nav-item")
-        .forEach((b) => b.classList.remove("active"));
+      document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      document
-        .querySelectorAll(".view")
-        .forEach((v) => v.classList.remove("active"));
+      document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
       const target = btn.getAttribute("data-view");
       document.getElementById(target)?.classList.add("active");
       render();
     };
   });
-  document.getElementById("btnUno").onclick = () =>
-    toast("Carica Uno Energy CSV cliccato (Pulsante Azzurro stabile)");
-  document.getElementById("btnPostel").onclick = () =>
-    toast("Importazione batch Postel avviata");
+  
+  document.getElementById("btnUno").onclick = () => document.getElementById("csvInput").click();
+  document.getElementById("csvInput").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const r = parseCSV(reader.result);
+        state.queuesigned.push(r);
+        state.lastUnoId = r.id;
+        logEvent(state, `File caricato: ${r.id} aggiunto in Staging`);
+        save();
+        render();
+        toast(`Contratto ${r.id} inserito nello Staging`);
+      } catch (err) {
+        toast("Errore nel CSV: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+  
+  document.getElementById("btnPostel").onclick = () => {
+    const lastUno = state.queuesigned[state.queuesigned.length - 1];
+    let p;
+    if (lastUno) {
+      p = makePostelFromUno(lastUno);
+      logEvent(state, `Tracciato ZIP Postel importato in Staging, compatibile con ${lastUno.id}`);
+    } else {
+      p = { ...sampleRecord(), id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
+      logEvent(state, `Tracciato ZIP Postel generico importato in Staging`);
+    }
+    state.queuearchived.push(p);
+    state.lastPostelId = p.id;
+    save();
+    render();
+    toast(`Record Postel ${p.id} inserito nello Staging`);
+  };
+  
+  document.getElementById("btnAutoMatch").onclick = () => {
+    const count = autoMatchAll();
+    save();
+    render();
+    if (count > 0) toast(`Match automatico: ${count} contratti abbinati`);
+    else toast("Nessuna corrispondenza automatica (confidenza ≥ 85%) trouvata nello staging");
+  };
+  
   document.getElementById("closeDrawer").onclick = closeDrawer;
+  document.getElementById("resetDemo").onclick = () => {
+    localStorage.removeItem("dockbridgePremiumState");
+    location.reload();
+  };
   document.getElementById("closeModal").onclick = closeModal;
-  document.getElementById("btnStickyMatchExec").onclick = () =>
-    manualMatch(selectedUno, selectedPostel);
+  document.getElementById("btnStickyMatchExec").onclick = () => manualMatch(selectedUno, selectedPostel);
 
   ["docSearch", "docCommodity", "docDate", "stagingSearch"].forEach((idv) => {
     document.getElementById(idv)?.addEventListener("input", render);
   });
+  
+  function syncManualCommodityFields(isGas, clearValues) {
+    const podPdrInput = document.getElementById("f_codice_pod_pdr");
+    const podPdrLabel = document.getElementById("f_codice_pod_pdr_label");
+    const prodottoInput = document.getElementById("f_codice_prodotto");
+    const prodottoLabel = document.getElementById("f_codice_prodotto_label");
+    if (!podPdrInput || !prodottoInput) return;
+    podPdrInput.name = isGas ? "codice_pdr" : "codice_pod";
+    podPdrLabel.innerText = isGas ? "Codice PDR" : "Codice POD";
+    prodottoInput.name = isGas ? "codice_prodotto_gas" : "codice_prodotto_ee";
+    prodottoLabel.innerText = isGas ? "Prodotto GAS" : "Prodotto EE";
+    if (clearValues) {
+      podPdrInput.value = "";
+      prodottoInput.value = "";
+    }
+  }
+
+  document.getElementById("f_commodity")?.addEventListener("change", (e) => {
+    syncManualCommodityFields(e.target.value === "Gas naturale", false);
+  });
+
   document.getElementById("btnManualMatch").onclick = openManualCompare;
   document.getElementById("createUno").onclick = () => {
     const r = getManualRecord();
     if (r) {
       state.queuesigned.push(r);
       state.lastUnoId = r.id;
-      logEvent(state, "Record Uno Energy creato");
+      logEvent(state, `Nuovo record inserito in Staging: ${r.id}`);
       save();
       render();
-      toast("Record creato");
+      toast("Record inserito in staging");
     }
   };
+  
   document.getElementById("fillDemo").onclick = () => {
     const r = sampleRecord();
+    const isGas = r.commodity === "Gas naturale";
+    document.getElementById("f_commodity").value = r.commodity;
+    syncManualCommodityFields(isGas, false);
     FIELDS.forEach(([k]) => {
       const el = document.querySelector(`[name="${k}"]`);
       if (el) el.value = r[k] || "";
     });
   };
+  
   render();
 });

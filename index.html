@@ -38,6 +38,7 @@
           </div>
         </div>
         <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
+        <button id="resetDemo" class="ghost full mt-sm" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati demo</button>
       </aside>
 
       <main class="main">
@@ -48,11 +49,13 @@
           </div>
           <div class="top-actions">
             <button id="btnUno">☁ Carica Uno Energy CSV</button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
             <button id="btnPostel" class="ghost">📦 Importa Postel ZIP</button>
+            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
           </div>
         </header>
 
-        <section id="dashboard" class="view active">
+<section id="dashboard" class="view active">
           <div class="kpi-grid">
             <div class="kpi">
               <small>Match Automatici (AI)</small><b id="kpiAuto">0</b>
@@ -67,21 +70,26 @@
               <small>Anomalie Rilevate</small><b id="kpiAnom">0</b>
             </div>
           </div>
+          
+          <div class="grid">
+            <div class="card">
+              <div class="card-head"><h3>Anomalie Rilevate</h3></div>
+              <div id="anomChart" class="chart-bars"></div>
+            </div>
+          </div>
+
           <div class="grid two">
             <div class="card">
               <div class="card-head"><h3>Riconciliazione Flussi</h3></div>
               <div id="matchChart" class="chart-bars"></div>
             </div>
             <div class="card">
-              <div class="card-head"><h3>Anomalie Frequenti</h3></div>
-              <div id="anomChart" class="chart-bars"></div>
-            </div>
-          </div>
-          <div class="grid two">
-            <div class="card">
-              <div class="card-head"><h3>Tipologia Commodity</h3></div>
+              <div class="card-head"><h3>Tipologia Commodity (Contratti Abbinati)</h3></div>
               <div id="commodityChart" class="chart-bars"></div>
             </div>
+          </div>
+
+          <div class="grid">
             <div class="card">
               <div class="card-head"><h3>Log Eventi Sistema</h3></div>
               <div id="timelineEvents" class="timeline"></div>
@@ -98,12 +106,12 @@
                 placeholder="Cerca per nome cliente, POD o ID..."
                 class="mega-search"
               />
-              <select id="docCommodity">
+              <select id="docCommodity" aria-label="Filtra per commodity">
                 <option value="">Tutte le commodity</option>
                 <option value="Energia Elettrica">Energia Elettrica</option>
                 <option value="Gas naturale">Gas naturale</option>
               </select>
-              <input type="date" id="docDate" />
+              <input type="date" id="docDate" aria-label="Filtra per data firma" />
             </div>
           </div>
           <div class="card">
@@ -115,7 +123,8 @@
                     <th>Cliente</th>
                     <th>Commodity</th>
                     <th>Data Firma</th>
-                    <th>Stato</th>
+                    <th>Abbinamento</th>
+                    <th class="col-action">Azione</th>
                   </tr>
                 </thead>
                 <tbody id="docTableBody"></tbody>
@@ -148,6 +157,7 @@
                       <th>ID</th>
                       <th>Cliente</th>
                       <th>POD/PDR</th>
+                      <th class="col-action">Azione</th>
                     </tr>
                   </thead>
                   <tbody id="tableUnoBody"></tbody>
@@ -166,6 +176,7 @@
                       <th>ID</th>
                       <th>Cliente</th>
                       <th>POD/PDR</th>
+                      <th class="col-action">Azione</th>
                     </tr>
                   </thead>
                   <tbody id="tablePostelBody"></tbody>
@@ -197,31 +208,80 @@
             <form id="manualForm" onsubmit="return false;">
               <div class="form-grid">
                 <div class="field">
-                  <label>Nome e Cognome</label
-                  ><input type="text" name="cliente_nome_cognome" />
+                  <label for="f_cliente_nome_cognome">Nome e Cognome</label
+                  ><input type="text" id="f_cliente_nome_cognome" name="cliente_nome_cognome" />
                 </div>
                 <div class="field">
-                  <label>Codice Fiscale</label
-                  ><input type="text" name="cliente_codice_fiscale" />
+                  <label for="f_cliente_codice_fiscale">Codice Fiscale</label
+                  ><input type="text" id="f_cliente_codice_fiscale" name="cliente_codice_fiscale" />
                 </div>
                 <div class="field">
-                  <label>Codice POD</label
-                  ><input type="text" name="codice_pod" />
+                  <label for="f_codice_pod_pdr" id="f_codice_pod_pdr_label">Codice POD</label
+                  ><input type="text" id="f_codice_pod_pdr" name="codice_pod" />
                 </div>
                 <div class="field">
-                  <label>Data Firma</label
-                  ><input type="date" name="data_firma_contratto" />
+                  <label for="f_data_firma_contratto">Data Firma</label
+                  ><input type="date" id="f_data_firma_contratto" name="data_firma_contratto" />
                 </div>
                 <div class="field">
-                  <label>Commodity</label
-                  ><select name="commodity">
+                  <label for="f_commodity">Commodity</label
+                  ><select id="f_commodity" name="commodity">
                     <option value="Energia Elettrica">Energia Elettrica</option>
                     <option value="Gas naturale">Gas naturale</option>
                   </select>
                 </div>
                 <div class="field">
-                  <label>Prodotto EE</label
-                  ><input type="text" name="codice_prodotto_ee" />
+                  <label for="f_codice_prodotto" id="f_codice_prodotto_label">Prodotto EE</label
+                  ><input type="text" id="f_codice_prodotto" name="codice_prodotto_ee" />
+                </div>
+                <div class="field">
+                  <label for="f_contract_account">Contract account</label
+                  ><input type="text" id="f_contract_account" name="contract_account" />
+                </div>
+                <div class="field">
+                  <label for="f_cliente_codice_identificativo_univoco">Codice identificativo</label
+                  ><input type="text" id="f_cliente_codice_identificativo_univoco" name="cliente_codice_identificativo_univoco" />
+                </div>
+                <div class="field">
+                  <label for="f_cliente_record_type_testuale">Record type</label
+                  ><select id="f_cliente_record_type_testuale" name="cliente_record_type_testuale">
+                    <option value="Retail">Retail</option>
+                    <option value="Business">Business</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f_opportunita_tipo_record">Tipo opportunità</label
+                  ><select id="f_opportunita_tipo_record" name="opportunita_tipo_record">
+                    <option value="Switch">Switch</option>
+                    <option value="Nuova attivazione">Nuova attivazione</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f_opportunita_id">ID opportunità</label
+                  ><input type="text" id="f_opportunita_id" name="opportunita_id" />
+                </div>
+                <div class="field">
+                  <label for="f_opportunita_nome">Nome opportunità</label
+                  ><input type="text" id="f_opportunita_nome" name="opportunita_nome" />
+                </div>
+                <div class="field">
+                  <label for="f_opportunita_commodity">Commodity opportunità</label
+                  ><select id="f_opportunita_commodity" name="opportunita_commodity">
+                    <option value="Power">Power</option>
+                    <option value="Gas">Gas</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f_stato">Stato</label
+                  ><select id="f_stato" name="stato">
+                    <option value="Attivo">Attivo</option>
+                    <option value="Sospeso">Sospeso</option>
+                    <option value="Chiuso">Chiuso</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="f_data_certificazione">Data certificazione</label
+                  ><input type="date" id="f_data_certificazione" name="data_certificazione" />
                 </div>
               </div>
               <div class="form-actions">
@@ -265,11 +325,11 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre
             <small>Anteprima PDF generata da DocBridge AI</small>
             <h2 id="pdfClientName">Cliente</h2>
             <p>
-              Identificativo POD/PDR:
+              <span id="pdfPodLabel">Identificativo POD/PDR:</span>
               <span class="highlight" id="pdfPod"></span>
             </p>
             <p>Sottoscritto il: <span id="pdfDate"></span></p>
-            <p style="margin-top: 40px; font-size: 12px; color: var(--muted)">
+            <p class="pdf-footnote">
               Documento digitalizzato e verificato con successo rispetto ai
               tracciati core.
             </p>
@@ -282,9 +342,8 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre
       <div class="modal-panel">
         <h3 id="compareTitle">Confronto Tracciati</h3>
         <div
-          class="diff-grid"
+          class="diff-grid diff-grid-scroll"
           id="compareDiffGrid"
-          style="max-height: 400px; overflow-y: auto; margin-bottom: 20px"
         ></div>
         <div class="form-actions">
           <button class="ghost" id="closeModal">Chiudi finestra</button>
