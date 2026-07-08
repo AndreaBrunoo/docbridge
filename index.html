@@ -38,6 +38,7 @@
           </div>
         </div>
         <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
+        <button id="resetDemo" class="ghost full" style="margin-top: 8px" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati demo</button>
       </aside>
 
       <main class="main">
@@ -48,7 +49,9 @@
           </div>
           <div class="top-actions">
             <button id="btnUno">☁ Carica Uno Energy CSV</button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
             <button id="btnPostel" class="ghost">📦 Importa Postel ZIP</button>
+            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
           </div>
         </header>
 

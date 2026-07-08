@@ -19,13 +19,13 @@ const FIELDS = [
   ["stato", "Stato"],
   ["data_certificazione", "Data certificazione"],
 ];
-const state = loadState() || seedState();
+const state = normalizeState(loadState());
 let selectedUno = null,
   selectedPostel = null;
 const tables = {};
 
-function seedState() {
-  const base = {
+function defaultState() {
+  return {
     queuesigned: [],
     queuearchived: [],
     files: [],
@@ -41,8 +41,38 @@ function seedState() {
     lastPair: null,
     dark: false,
   };
+}
+function seedState() {
+  const base = defaultState();
   logEvent(base, "Sistema demo inizializzato");
   return base;
+}
+// Ripara uno stato caricato da localStorage che potrebbe provenire da
+// un'altra versione della demo (stessa chiave, forma dei dati diversa),
+// così i pulsanti non si bloccano più in silenzio per un campo mancante.
+function normalizeState(loaded) {
+  if (!loaded || typeof loaded !== "object") return seedState();
+  const base = defaultState();
+  const merged = { ...base, ...loaded };
+  merged.queuesigned = Array.isArray(loaded.queuesigned) ? loaded.queuesigned : [];
+  merged.queuearchived = Array.isArray(loaded.queuearchived) ? loaded.queuearchived : [];
+  merged.files = Array.isArray(loaded.files) ? loaded.files : [];
+  merged.events = Array.isArray(loaded.events) ? loaded.events : [];
+  const m = loaded.metrics && typeof loaded.metrics === "object" ? loaded.metrics : {};
+  const a = m.anom && typeof m.anom === "object" ? m.anom : {};
+  merged.metrics = {
+    auto: typeof m.auto === "number" ? m.auto : 0,
+    manual: typeof m.manual === "number" ? m.manual : 0,
+    bulk: typeof m.bulk === "number" ? m.bulk : 0,
+    anom: {
+      commodity: typeof a.commodity === "number" ? a.commodity : 0,
+      pod: typeof a.pod === "number" ? a.pod : 0,
+      date: typeof a.date === "number" ? a.date : 0,
+      name: typeof a.name === "number" ? a.name : 0,
+    },
+  };
+  merged.dark = typeof loaded.dark === "boolean" ? loaded.dark : false;
+  return merged;
 }
 function save() {
   localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
@@ -206,6 +236,22 @@ function autoMatchAll(silent = false) {
       state,
       `Riconciliazione automatica: accoppiati ${count} contratti`,
     );
+  return count;
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/).filter(Boolean);
+  if (!lines.length) throw new Error("Il file CSV è vuoto");
+  const sep = lines[0].includes(";") ? ";" : ",";
+  const headers = lines[0].split(sep).map((h) => h.trim());
+  const values = (lines[1] || "").split(sep).map((v) => v.trim());
+  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
+  headers.forEach((h, i) => {
+    if (h) r[h] = values[i] !== undefined ? values[i] : "";
+  });
+  if (!r.cliente_nome_cognome) r.cliente_nome_cognome = "Cliente da CSV";
+  if (!r.commodity) r.commodity = "Energia Elettrica";
+  return r;
 }
 
 function toast(m) {
@@ -219,6 +265,19 @@ function toast(m) {
 }
 
 function render() {
+  try {
+    renderInner();
+  } catch (e) {
+    console.error("Errore render(), ripristino i dati demo:", e);
+    localStorage.removeItem("dockbridgePremiumState");
+    Object.assign(state, seedState());
+    logEvent(state, "Dati demo ripristinati automaticamente dopo un errore");
+    save();
+    toast("Dati demo non validi: ripristinati automaticamente");
+    renderInner();
+  }
+}
+function renderInner() {
   const activeView = document.querySelector(".view.active")?.id;
   if (activeView === "dashboard") renderDashboard();
   if (activeView === "consultazione") renderConsultazione();
@@ -536,10 +595,65 @@ window.addEventListener("DOMContentLoaded", () => {
     };
   });
   document.getElementById("btnUno").onclick = () =>
-    toast("Carica Uno Energy CSV cliccato (Pulsante Azzurro stabile)");
-  document.getElementById("btnPostel").onclick = () =>
-    toast("Importazione batch Postel avviata");
+    document.getElementById("csvInput").click();
+  document.getElementById("csvInput").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const r = parseCSV(reader.result);
+        state.queuesigned.push(r);
+        state.lastUnoId = r.id;
+        logEvent(state, `Record Uno Energy importato da CSV: ${r.id}`);
+        save();
+        render();
+        toast(`Contratto ${r.id} caricato in staging`);
+      } catch (err) {
+        toast("Errore nel CSV: " + err.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+  document.getElementById("btnPostel").onclick = () => {
+    const lastUno =
+      state.queuesigned.find((x) => x.id === state.lastUnoId) ||
+      state.queuesigned[state.queuesigned.length - 1];
+    let p;
+    if (lastUno) {
+      p = makePostelFromUno(lastUno);
+      logEvent(
+        state,
+        `Record Postel simulato generato, compatibile con ${lastUno.id}`,
+      );
+    } else {
+      p = { ...sampleRecord(), id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
+      logEvent(
+        state,
+        "Record Postel simulato generato (nessun contratto Uno Energy recente da abbinare)",
+      );
+    }
+    state.queuearchived.push(p);
+    state.lastPostelId = p.id;
+    save();
+    render();
+    toast(`Record Postel ${p.id} importato in staging`);
+  };
+  document.getElementById("btnAutoMatch").onclick = () => {
+    const count = autoMatchAll();
+    save();
+    render();
+    if (count > 0)
+      toast(`Match automatico: ${count} contratti riconciliati`);
+    else
+      toast("Nessuna coppia con confidenza ≥ 85% trovata in staging");
+  };
   document.getElementById("closeDrawer").onclick = closeDrawer;
+  document.getElementById("resetDemo").onclick = () => {
+    localStorage.removeItem("dockbridgePremiumState");
+    location.reload();
+  };
   document.getElementById("closeModal").onclick = closeModal;
   document.getElementById("btnStickyMatchExec").onclick = () =>
     manualMatch(selectedUno, selectedPostel);
