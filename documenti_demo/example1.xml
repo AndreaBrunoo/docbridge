@@ -1,0 +1,23 @@
+<root>
+<info>
+<cliente_nome_cognome>Mario Rossi</cliente_nome_cognome>
+<cliente_codice_fiscale>RSSMRA80A01H501U</cliente_codice_fiscale>
+<cliente_partita_iva>01234567890</cliente_partita_iva>
+<data_firma_contratto>2026-07-07</data_firma_contratto>
+<codice_pod>IT001E12345678</codice_pod>
+<codice_pdr></codice_pdr>
+<contract_account>CA-900123</contract_account>
+<pde_external_id>PDE-778899</pde_external_id>
+<commodity>EE</commodity>
+<cliente_codice_identificativo_univoco>CID-001</cliente_codice_identificativo_univoco>
+<cliente_record_type_testuale>Business</cliente_record_type_testuale>
+<opportunita_tipo_record>Contratto Energia</opportunita_tipo_record>
+<opportunita_id>OPP-5521</opportunita_id>
+<opportunita_nome>Migrazione Business EE</opportunita_nome>
+<opportunita_commodity>EE</opportunita_commodity>
+<codice_prodotto_ee>EE-FIX-2026</codice_prodotto_ee>
+<codice_prodotto_gas></codice_prodotto_gas>
+<stato>Firmato</stato>
+<data_certificazione>2026-07-07</data_certificazione>
+</info>
+</root>
