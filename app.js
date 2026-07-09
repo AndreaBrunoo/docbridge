@@ -530,7 +530,7 @@ function renderUserBadge() {
         <span class="role-pill role-${u.role.toLowerCase()}">${escapeHtml(u.role)}</span>
       </div>
     </div>
-    <button id="logoutBtn" class="ghost" title="Esci dalla sessione">⎋ Esci</button>
+    <button id="logoutBtn" class="ghostrosso" title="Esci dalla sessione">⎋ Esci</button>
   `;
   const lo = document.getElementById("logoutBtn");
   if (lo) lo.onclick = handleLogout;
