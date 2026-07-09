@@ -368,27 +368,43 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
   </div>
 
   <div id="drawer" class="drawer">
-    <div class="drawer-panel">
-      <button class="drawer-close" id="closeDrawer">×</button>
-      <h3 id="drawerTitle">Dettagli Documento</h3>
-      <div class="meta-grid" id="drawerMetaGrid"></div>
-      <div class="pdf-viewer">
-        <div class="pdf-page">
-          <small>Anteprima PDF generata da DocBridge AI</small>
-          <h2 id="pdfClientName">Cliente</h2>
-          <p>
-            <span id="pdfPodLabel">Identificativo POD/PDR:</span>
-            <span class="highlight" id="pdfPod"></span>
-          </p>
-          <p>Sottoscritto il: <span id="pdfDate"></span></p>
-          <p class="pdf-footnote">
-            Documento digitalizzato e verificato con successo rispetto ai
-            tracciati core.
-          </p>
+  <div class="drawer-panel">
+    <button class="drawer-close" id="closeDrawer">×</button>
+    <h3 id="drawerTitle">Dettagli Documento</h3>
+    <div class="meta-grid" id="drawerMetaGrid"></div>
+
+    <div class="pdf-viewer">
+      <div class="pdf-page">
+        <div class="pdf-brand">
+          <span class="pdf-brand-dot"></span>
+          <span class="pdf-brand-name">uno<b>energy</b></span>
         </div>
+
+        <div class="pdf-doctitle">Proposta di Contratto per Clienti domestici</div>
+
+        <div class="pdf-field">
+          <small>Cliente</small>
+          <h2 id="pdfClientName">Cliente</h2>
+        </div>
+
+        <div class="pdf-field">
+          <small id="pdfPodLabel">Identificativo POD/PDR</small>
+          <span class="highlight" id="pdfPod"></span>
+        </div>
+
+        <div class="pdf-field">
+          <small>Sottoscritto il</small>
+          <span id="pdfDate"></span>
+        </div>
+
+        <p class="pdf-footnote">
+          <span class="pdf-check">✓</span>
+          Documento digitalizzato e verificato con successo rispetto ai tracciati core.
+        </p>
       </div>
     </div>
   </div>
+</div>
 
   <div id="modalCompare" class="modal">
     <div class="modal-panel">
