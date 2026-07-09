@@ -187,9 +187,7 @@ function confidence(u, p) {
     }
   });
   const score = total > 0 ? Math.min(100, Math.round((matchCount / total) * 100)) : 0;
-  let type = "Anomalo";
-  if (score >= 85) type = "Automatico";
-  else if (score >= 50) type = "Manuale";
+  let type = score >= 100 ? "Automatico" : "Anomalo";
   return { score, type, reasons };
 }
 
@@ -230,7 +228,7 @@ function autoMatchAll(silent = false) {
         best = p;
       }
     });
-    if (best && bestScore >= 85) {
+    if (best && bestScore >= 100) {
       state.matched.unshift(finalizeMatch(u, best, "Automatico"));
       state.queuesigned.splice(i, 1);
       const idx = state.queuearchived.indexOf(best);
@@ -421,10 +419,6 @@ function matchColor(score) {
   return `hsl(${hue}, 75%, 42%)`;
 }
 
-function matchBadge(score) {
-  return `<span class="badge" style="background:${matchColor(score)};color:#fff">${score}%</span>`;
-}
-
 function deleteMatched(id) {
   // Trova il record prima di eliminarlo per capire se aveva generato anomalie
   const recordToDelete = state.matched.find(x => x.id === id);
@@ -467,19 +461,18 @@ function renderConsultazione() {
   
   const matchesOnly = state.matched.map((d) => ({ 
     d, 
-    score: d.match_score, 
     emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
   }));
   
   let count = 0;
-  matchesOnly.forEach(({ d, score, emoji }) => {
+  matchesOnly.forEach(({ d, emoji }) => {
     if (comm && d.commodity !== comm) return;
     const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
     if (q && !matchStr.includes(q)) return;
     count++;
     
     const tr = document.createElement("tr");
-    const badgeText = `${matchBadge(score)} <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
+    const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
       
     tr.innerHTML = `
       <td><b>${d.id}</b></td>
@@ -578,6 +571,32 @@ function checkStickyMatch() {
   }
 }
 
+// Tenta il match automatico solo per la coppia attualmente selezionata in
+// Staging. Accoppia esclusivamente se la confidenza è al 100%, esattamente
+// come la logica del pulsante "Match automatico" globale; altrimenti avvisa
+// l'utente e lo indirizza al confronto manuale, senza forzare nulla.
+function autoMatchSelectedPair() {
+  if (!selectedUno || !selectedPostel) return;
+  const u = selectedUno,
+    p = selectedPostel;
+  const conf = confidence(u, p);
+  if (conf.score >= 100) {
+    state.matched.unshift(finalizeMatch(u, p, "Automatico"));
+    state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
+    state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
+    state.metrics.auto++;
+    logEvent(state, `Match automatico eseguito: ${u.id} + ${p.id} (100%)`);
+    selectedUno = null;
+    selectedPostel = null;
+    checkStickyMatch();
+    save();
+    render();
+    toast("Record abbinati automaticamente (100% di confidenza)");
+  } else {
+    toast(`Match automatico non disponibile: confidenza ${conf.score}% (serve 100%). Usa "Confronta Dati" per l'accoppiamento manuale.`);
+  }
+}
+
 function manualMatch(u, p) {
   const conf = confidence(u, p);
   if (u.commodity !== p.commodity) state.metrics.anom.commodity++;
@@ -621,7 +640,7 @@ function openDrawer(d) {
     }
   });
   if (d.tipo_match) {
-    grid.innerHTML += `<div class="meta"><small>Tipo abbinamento</small><b>${d.tipo_match} (${d.match_score}%)</b></div>`;
+    grid.innerHTML += `<div class="meta"><small>Tipo abbinamento</small><b>${d.tipo_match}</b></div>`;
     grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
   }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
@@ -635,6 +654,11 @@ function closeDrawer() {
   document.getElementById("drawer")?.classList.remove("open");
 }
 
+// Snapshot dei valori originali di selectedUno / selectedPostel all'apertura
+// del modal di Confronto Riconciliazione guidata. Serve per supportare il
+// tasto "Annulla" del footer, che ripristina i record allo stato pre-modifica.
+let _reconSnapshot = null;
+
 function openManualCompare() {
   if (!selectedUno || !selectedPostel) return;
   const m = document.getElementById("modalCompare");
@@ -642,20 +666,206 @@ function openManualCompare() {
   document.getElementById("compareTitle").innerText = `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
   const b = document.getElementById("compareDiffGrid");
   b.innerHTML = "";
+  // Salva lo stato originale per consentire il rollback completo
+  _reconSnapshot = {
+    u: { ...selectedUno },
+    p: { ...selectedPostel },
+  };
   FIELDS.forEach(([k, label]) => {
     if (selectedUno[k] || selectedPostel[k]) {
       const eq = selectedUno[k] === selectedPostel[k];
-      b.innerHTML += `
-    <div class="diff ${!eq ? "changed" : ""}"><small>${label} (Uno Energy): </small><b>${selectedUno[k] || "—"}</b></div>
-    <div class="diff ${!eq ? "changed" : ""}"><small>${label} (Postel): </small><b>${selectedPostel[k] || "—"}</b></div>
+      const cls = !eq ? "changed" : "";
+      const safeU = escapeHtml(selectedUno[k] || "—");
+      const safeP = escapeHtml(selectedPostel[k] || "—");
+      if (eq) {
+        b.innerHTML += `
+    <div class="diff ${cls}"><small>${label} (Uno Energy): </small><b>${safeU}</b></div>
+    <div class="diff ${cls}"><small>${label} (Postel): </small><b>${safeP}</b></div>
    `;
+      } else {
+        b.innerHTML += `
+    <div class="diff ${cls}" data-key="${k}" data-side="u"><small>${label} (Uno Energy): </small><b>${safeU}</b><button class="btn-edit-mismatch" title="Unifica partendo dal valore Uno Energy" aria-label="Modifica campo Uno Energy" data-source="u">✏️</button></div>
+    <div class="diff ${cls}" data-key="${k}" data-side="p"><small>${label} (Postel): </small><b>${safeP}</b><button class="btn-edit-mismatch" title="Unifica partendo dal valore Postel" aria-label="Modifica campo Postel" data-source="p">✏️</button></div>
+   `;
+      }
     }
   });
+  // Delega: click su matita → fondi i due riquadri in un editor viola.
+  // Il valore iniziale dell'input è pre-popolato con la sorgente scelta
+  // (Uno Energy o Postel) grazie all'attributo data-source sulla matita.
+  b.querySelectorAll(".btn-edit-mismatch").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const diff = btn.closest(".diff");
+      const key = diff.getAttribute("data-key");
+      const source = btn.getAttribute("data-source");
+      const side = diff.getAttribute("data-side");
+      const diffOther = b.querySelector(`.diff[data-key="${key}"][data-side="${side === "u" ? "p" : "u"}"]`);
+      if (!diffOther) return;
+      openUnifiedEditor(key, diff, diffOther, source);
+    });
+  });
+  renderReconFooter();
   m.classList.add("open");
 }
 
+// Mostra/nasconde il footer "Accoppia" + "Annulla" in base allo stato
+// dei conflitti. Il tasto "Accoppia" è abilitato solo se TUTTI i campi in
+// mismatch sono stati risolti (cioè non ci sono più .diff.changed aperti
+// che non siano dentro un editor unificato "confirmed").
+function renderReconFooter() {
+  const footer = document.getElementById("reconFooter");
+  if (!footer) return;
+  const grid = document.getElementById("compareDiffGrid");
+  // Conta i riquadri "changed" ancora da risolvere (cioè non confermati
+  // e non dentro un editor unificato aperto)
+  const pending = grid.querySelectorAll(".diff.changed").length;
+  const merged = grid.querySelectorAll(".diff-merged").length;
+  const totalConflicts = pending + merged;
+  const btnAccoppia = document.getElementById("reconAccoppia");
+  const btnAnnulla = document.getElementById("reconAnnulla");
+  const status = document.getElementById("reconStatus");
+  if (totalConflicts === 0) {
+    footer.style.display = "none";
+    return;
+  }
+  footer.style.display = "flex";
+  if (pending === 0) {
+    status.textContent = "Tutti i conflitti sono stati risolti. Puoi accoppiare i record.";
+    status.className = "recon-status ok";
+    btnAccoppia.disabled = false;
+  } else {
+    status.textContent = `Conflitti da risolvere: ${pending} di ${totalConflicts}. Risolvi tutti i campi in mismatch per abilitare l'accoppiamento.`;
+    status.className = "recon-status pending";
+    btnAccoppia.disabled = true;
+  }
+}
+
+function escapeHtml(v) {
+  return String(v)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+// Apre l'editor unificato per un campo in mismatch: sostituisce i due
+// riquadri (Uno Energy + Postel) con un singolo blocco viola che mostra il
+// valore scelto e permette la modifica inline. Premendo "Applica" il valore
+// viene propagato su entrambi i record in staging e la confidenza ricalcolata.
+// `source` indica quale lato ha generato la matita cliccata: "u" → pre-popola
+// con il valore Uno Energy, "p" → pre-popola con il valore Postel.
+function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
+  const label = diffUno.querySelector("small").textContent.replace(/\s*\(Uno Energy\):\s*$/, "");
+  const valU = selectedUno[key] ?? "";
+  const valP = selectedPostel[key] ?? "";
+  // Default: il valore del lato da cui l'utente ha cliccato la matita
+  const initial = source === "p" ? (valP || valU || "") : (valU || valP || "");
+  const wrapper = document.createElement("div");
+  wrapper.className = "diff diff-merged";
+  wrapper.setAttribute("data-key", key);
+  wrapper.innerHTML = `
+    <small>${escapeHtml(label)} (campo unificato)</small>
+    <div class="diff-merged-row">
+      <input type="text" class="diff-merged-input" value="${escapeHtml(initial)}" />
+      <button class="diff-merged-apply" type="button">Applica</button>
+      <button class="diff-merged-cancel ghost" type="button">Annulla</button>
+    </div>
+    <div class="diff-merged-hint">Valore attuale: Uno Energy = <b>${escapeHtml(valU || "—")}</b> · Postel = <b>${escapeHtml(valP || "—")}</b></div>
+  `;
+  // Sostituisci i due riquadri consecutivi con quello unico
+  diffPostel.replaceWith(wrapper);
+  diffUno.remove();
+
+  const input = wrapper.querySelector(".diff-merged-input");
+  input.focus();
+  input.select();
+
+  wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
+    // Ripristina la coppia originale dei due riquadri in mismatch.
+    // diffPostel era stato rimosso dal DOM, quindi reinseriamo prima lui
+    // e poi diffUno prima di diffPostel per ripristinare l'ordine.
+    wrapper.replaceWith(diffPostel);
+    diffPostel.parentNode?.insertBefore(diffUno, diffPostel);
+    // Ri-aggancia i listener delle matite su entrambi i riquadri ripristinati
+    wirePencilButton(diffUno, key);
+    wirePencilButton(diffPostel, key);
+    renderReconFooter();
+  });
+
+  wrapper.querySelector(".diff-merged-apply").addEventListener("click", () => {
+    const newVal = input.value;
+    // Aggiorna i record in staging in-place (riferimenti mantenuti)
+    selectedUno[key] = newVal;
+    selectedPostel[key] = newVal;
+    // Aggiorna la sticky match bar con la nuova confidenza. NON salvare qui:
+    // le modifiche restano solo in memoria finché non si preme "Accoppia
+    // record". Se il modal viene chiuso senza accoppiare, closeModal() le
+    // scarta ripristinando lo snapshot originale.
+    checkStickyMatch();
+    toast(`Campo "${label}" unificato (provvisorio, non ancora salvato)`);
+    // Trasforma il riquadro unificato in modalità "confermato" viola
+    wrapper.classList.add("confirmed");
+    wrapper.innerHTML = `
+      <small>${escapeHtml(label)} (campo unificato)</small>
+      <b>${escapeHtml(newVal || "—")}</b>
+      <div class="diff-merged-hint">✅ Valore unificato applicato a entrambi i record</div>
+    `;
+    renderReconFooter();
+  });
+}
+
+// Aggancia il listener della matita ✏️ su un riquadro appena ricreato (es.
+// dopo "Annulla" dell'editor unificato). `key` è la chiave del campo.
+function wirePencilButton(diffEl, key) {
+  const btn = diffEl.querySelector(".btn-edit-mismatch");
+  if (!btn) return;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const side = diffEl.getAttribute("data-side");
+    const source = btn.getAttribute("data-source");
+    const grid = document.getElementById("compareDiffGrid");
+    const otherSide = side === "u" ? "p" : "u";
+    const diffOther = grid.querySelector(`.diff[data-key="${key}"][data-side="${otherSide}"]`);
+    if (diffOther) openUnifiedEditor(key, diffEl, diffOther, source);
+  });
+}
+
+// Annulla TUTTE le modifiche fatte nel modal di riconciliazione guidata,
+// ripristinando i valori originali dei record in staging dallo snapshot
+// salvato all'apertura. Chiude inoltre il modal.
+function reconAnnullaTutto() {
+  if (!_reconSnapshot) {
+    closeModal();
+    return;
+  }
+  // Ripristina i valori originali sui record in staging
+  Object.assign(selectedUno, _reconSnapshot.u);
+  Object.assign(selectedPostel, _reconSnapshot.p);
+  _reconSnapshot = null;
+  checkStickyMatch();
+  save();
+  closeModal();
+  toast("Modifiche annullate: record ripristinati allo stato iniziale");
+}
+
 function closeModal() {
+  // Se il modal viene chiuso (es. tasto X) senza aver premuto "Accoppia
+  // record", eventuali campi unificati con "Applica" non sono mai stati
+  // salvati: scartiamo le modifiche ripristinando i record in staging allo
+  // stato originale catturato in _reconSnapshot. Quando invece si conferma
+  // l'accoppiamento, _reconSnapshot viene azzerato prima di chiamare
+  // closeModal(), quindi qui non scatta alcun ripristino.
+  if (_reconSnapshot && selectedUno && selectedPostel) {
+    Object.assign(selectedUno, _reconSnapshot.u);
+    Object.assign(selectedPostel, _reconSnapshot.p);
+    checkStickyMatch();
+  }
   document.getElementById("modalCompare")?.classList.remove("open");
+  _reconSnapshot = null;
+  const footer = document.getElementById("reconFooter");
+  if (footer) footer.style.display = "none";
 }
 
 function getManualRecord() {
@@ -888,7 +1098,7 @@ window.addEventListener("DOMContentLoaded", () => {
     save();
     render();
     if (count > 0) toast(`Match automatico: ${count} contratti abbinati`);
-    else toast("Nessuna corrispondenza automatica (confidenza ≥ 85%) trouvata nello staging");
+    else toast("Nessuna corrispondenza automatica (confidenza 100%) trovata nello staging");
   };
   
   document.getElementById("closeDrawer").onclick = closeDrawer;
@@ -897,7 +1107,15 @@ window.addEventListener("DOMContentLoaded", () => {
     location.reload();
   };
   document.getElementById("closeModal").onclick = closeModal;
-  document.getElementById("btnStickyMatchExec").onclick = () => manualMatch(selectedUno, selectedPostel);
+  // Footer del modal di Riconciliazione guidata
+  document.getElementById("reconAnnulla").onclick = reconAnnullaTutto;
+  document.getElementById("reconAccoppia").onclick = () => {
+    if (document.getElementById("reconAccoppia").disabled) return;
+    _reconSnapshot = null; // le modifiche sono confermate, non servono più
+    closeModal();
+    manualMatch(selectedUno, selectedPostel);
+  };
+  document.getElementById("btnStickyAutoMatch").onclick = autoMatchSelectedPair;
 
   ["docSearch", "docCommodity", "docDate", "stagingSearch"].forEach((idv) => {
     document.getElementById(idv)?.addEventListener("input", render);
