@@ -295,9 +295,9 @@ button.success:hover {
   filter: brightness(1.1);
 }
 
-button.violet {
-  background: var(--violet);
-  color: #fff;
+button.orange {
+  background: var(--orange);
+  color: white;
 }
 button.orange:hover {
   filter: brightness(1.1);
