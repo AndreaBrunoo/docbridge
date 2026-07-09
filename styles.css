@@ -1323,7 +1323,7 @@ tr:hover .btn-delete-row {
   border-radius: 20px;
 }
 
-.role-pill.role-visualizzatore {
+.role-pill.role-consultatore {
 background: var(--orange);
   border: 1px solid var(--orange);
 }

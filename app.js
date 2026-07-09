@@ -132,7 +132,7 @@ function normalizeState(loaded) {
 // azione significa elencarla qui sotto; il resto del codice usa solo
 // `can(...)` e non deve fare confronti diretti con `state.currentUser.role`.
 const ROLE_PERMISSIONS = {
-  Visualizzatore: new Set([
+  Consultatore: new Set([
     "view:dashboard",
     "view:consultazione",
   ]),
@@ -229,7 +229,7 @@ function revealUser(userId) {
 
 function changeUserRole(userId, newRole) {
   if (!can("action:cambia-ruolo")) return false;
-  if (!["Visualizzatore", "Tecnico", "DPO"].includes(newRole)) return false;
+  if (!["Consultatore", "Tecnico", "DPO"].includes(newRole)) return false;
   const u = findUserById(userId);
   if (!u) return false;
   const oldRole = u.role;
@@ -571,7 +571,7 @@ function handleLogout() {
   logout();
   // Torna alla vista Dashboard prima di mostrare il login, così l'utente
   // DPO che si disconnette non lascia la "Gestione utenti" come view attiva
-  // per il prossimo login (Visualizzatore non la vedrebbe).
+  // per il prossimo login (Consultatore non la vedrebbe).
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
   document.getElementById("dashboard")?.classList.add("active");
   document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
@@ -1159,7 +1159,7 @@ function renderUsersPanel() {
     b.innerHTML = '<tr><td colspan="3" class="empty">Accesso riservato al ruolo DPO.</td></tr>';
     return;
   }
-  const roles = ["Visualizzatore", "Tecnico", "DPO"];
+  const roles = ["Consultatore", "Tecnico", "DPO"];
   b.innerHTML = state.users
     .map((u) => {
       const options = roles
