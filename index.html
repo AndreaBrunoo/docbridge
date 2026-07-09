@@ -200,6 +200,49 @@
           </div>
         </div>
       </section>
+       <section id="consultazione" class="view">
+  <div class="card">
+    <div class="search-row wrap">
+      <input
+        type="text"
+        id="docSearch"
+        placeholder="Cerca per nome cliente, POD o ID..."
+        class="mega-search"
+      />
+      <select id="docCommodity" aria-label="Filtra per commodity">
+        <option value="">Tutte le commodity</option>
+        <option value="Energia Elettrica">Energia Elettrica</option>
+        <option value="Gas naturale">Gas naturale</option>
+      </select>
+      <select id="docSearchField" aria-label="Cerca per campo specifico">
+        <option value="">Tutti i campi</option>
+        <option value="cliente_codice_fiscale">Codice fiscale</option>
+        <option value="cliente_partita_iva">Partita IVA</option>
+        <option value="pde_external_id">PD External ID</option>
+        <option value="codice_pod">Codice POD</option>
+        <option value="codice_pdr">Codice PDR</option>
+        <option value="data_firma_contratto">Data firma</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID Documento</th>
+            <th>Cliente</th>
+            <th>Commodity</th>
+            <th>Data Firma</th>
+            <th>Abbinamento</th>
+            <th class="col-action">Azione</th>
+          </tr>
+        </thead>
+        <tbody id="docTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
       <section id="manuale" class="view">
         <div class="card">
@@ -299,7 +342,27 @@
               <button type="button" class="primary" id="createUno">
                 Inietta in Staging
               </button>
+          </div>
+          <div class="card sticky-match" id="stickyMatch" style="display: none">
+            <div id="stickyMatchText"></div>
+            <div class="top-actions">
+              <button class="ghost" id="btnManualMatch">
+                🔎 Confronta Dati
+              </button>
+              <button class="violet" id="btnStickyAutoMatch">
+                🤖 Match Automatico
+              </button>
             </div>
+          </div>
+        </section>
+
+        <section id="manuale" class="view">
+          <div class="card">
+            <div class="card-head">
+              <h3>Nuovo record di test</h3>
+              <button id="fillDemo" class="ghost">
+                ⚡ Inserisci dati demo
+             
           </form>
         </div>
       </section>
