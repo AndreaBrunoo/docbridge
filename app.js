@@ -1726,6 +1726,18 @@ document.addEventListener("click", () => toggleRepoPanel(false));
                                    record.pde_external_id.trim() !== "undefined";
 
           if (hasValidExternalId) {
+            // Check if a document with the same PD external ID already exists in consultation
+            const existingRecord = state.matched.find(r =>
+              r.pde_external_id &&
+              r.pde_external_id.trim() === record.pde_external_id.trim()
+            );
+
+            if (existingRecord) {
+              // Document with same PD external ID already exists
+              toast(`Errore: Documento con PD External ID "${record.pde_external_id}" già presente in consultazione. Non è stato inserito.`);
+              return; // Exit without inserting
+            }
+
             // Go directly to consultation (matched state) - skip staging
             // Create a match with a dummy Uno record or use the last Uno if available
             const lastUno = state.queuesigned[state.queuesigned.length - 1];
