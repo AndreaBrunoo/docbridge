@@ -210,8 +210,8 @@ button {
 }
 #btnUno,
 button.primary {
-  background: var(--btn-csv);
-  color: #fff;
+  background: #033878;
+  color: #f7a823;
 }
 #btnUno:hover,
 button.primary:hover {
