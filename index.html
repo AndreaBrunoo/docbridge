@@ -97,41 +97,49 @@
           </div>
         </section>
 
-        <section id="consultazione" class="view">
-          <div class="card">
-            <div class="search-row wrap">
-              <input
-                type="text"
-                id="docSearch"
-                placeholder="Cerca per nome cliente, POD o ID..."
-                class="mega-search"
-              />
-              <select id="docCommodity" aria-label="Filtra per commodity">
-                <option value="">Tutte le commodity</option>
-                <option value="Energia Elettrica">Energia Elettrica</option>
-                <option value="Gas naturale">Gas naturale</option>
-              </select>
-              <input type="date" id="docDate" aria-label="Filtra per data firma" />
-            </div>
-          </div>
-          <div class="card">
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>ID Documento</th>
-                    <th>Cliente</th>
-                    <th>Commodity</th>
-                    <th>Data Firma</th>
-                    <th>Abbinamento</th>
-                    <th class="col-action">Azione</th>
-                  </tr>
-                </thead>
-                <tbody id="docTableBody"></tbody>
-              </table>
-            </div>
-          </div>
-        </section>
+       <section id="consultazione" class="view">
+  <div class="card">
+    <div class="search-row wrap">
+      <input
+        type="text"
+        id="docSearch"
+        placeholder="Cerca per nome cliente, POD o ID..."
+        class="mega-search"
+      />
+      <select id="docCommodity" aria-label="Filtra per commodity">
+        <option value="">Tutte le commodity</option>
+        <option value="Energia Elettrica">Energia Elettrica</option>
+        <option value="Gas naturale">Gas naturale</option>
+      </select>
+      <select id="docSearchField" aria-label="Cerca per campo specifico">
+        <option value="">Tutti i campi</option>
+        <option value="cliente_codice_fiscale">Codice fiscale</option>
+        <option value="cliente_partita_iva">Partita IVA</option>
+        <option value="pde_external_id">PD External ID</option>
+        <option value="codice_pod">Codice POD</option>
+        <option value="codice_pdr">Codice PDR</option>
+        <option value="data_firma_contratto">Data firma</option>
+      </select>
+    </div>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID Documento</th>
+            <th>Cliente</th>
+            <th>Commodity</th>
+            <th>Data Firma</th>
+            <th>Abbinamento</th>
+            <th class="col-action">Azione</th>
+          </tr>
+        </thead>
+        <tbody id="docTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
         <section id="staging" class="view">
           <div class="card">

@@ -452,9 +452,20 @@ function deleteStaging(id, type) {
   toast("Record rimosso dallo staging");
 }
 
+const searchFieldPlaceholders = {
+  "": "Cerca per nome cliente, POD o ID...",
+  cliente_codice_fiscale: "Cerca per codice fiscale...",
+  cliente_partita_iva: "Cerca per partita IVA...",
+  pde_external_id: "Cerca per PD External ID...",
+  codice_pod: "Cerca per codice POD...",
+  codice_pdr: "Cerca per codice PDR...",
+  data_firma_contratto: "Cerca per data firma (AAAA-MM-GG)...",
+};
+
 function renderConsultazione() {
   const q = document.getElementById("docSearch").value.toLowerCase();
   const comm = document.getElementById("docCommodity").value;
+  const searchField = document.getElementById("docSearchField").value; // "" = tutti i campi
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
@@ -467,8 +478,17 @@ function renderConsultazione() {
   let count = 0;
   matchesOnly.forEach(({ d, emoji }) => {
     if (comm && d.commodity !== comm) return;
-    const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
-    if (q && !matchStr.includes(q)) return;
+
+    if (q) {
+      if (searchField) {
+        const fieldValue = (d[searchField] || "").toString().toLowerCase();
+        if (!fieldValue.includes(q)) return;
+      } else {
+        const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
+        if (!matchStr.includes(q)) return;
+      }
+    }
+
     count++;
     
     const tr = document.createElement("tr");
@@ -495,7 +515,7 @@ function renderConsultazione() {
   });
   
   if (count === 0)
-    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun abbinamento presente. Avvia il matching dall\'Area Staging.</td></tr>';
+    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>';
 }
 
 function renderStaging() {
@@ -1117,9 +1137,17 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   document.getElementById("btnStickyAutoMatch").onclick = autoMatchSelectedPair;
 
-  ["docSearch", "docCommodity", "docDate", "stagingSearch"].forEach((idv) => {
-    document.getElementById(idv)?.addEventListener("input", render);
-  });
+  ["docSearch", "docCommodity", "docSearchField", "stagingSearch"].forEach((idv) => {
+  document.getElementById(idv)?.addEventListener("input", render);
+});
+
+// Aggiorna il placeholder della barra di ricerca in base al campo scelto nel menù a tendina
+document.getElementById("docSearchField")?.addEventListener("change", (e) => {
+  const docSearchInput = document.getElementById("docSearch");
+  if (docSearchInput) {
+    docSearchInput.placeholder = searchFieldPlaceholders[e.target.value];
+  }
+});
   
   function syncManualCommodityFields(isGas, clearValues) {
     const podPdrInput = document.getElementById("f_codice_pod_pdr");
