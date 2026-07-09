@@ -34,18 +34,8 @@
       <div class="repo-card-wrap">
         <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
           <small>Repository attive</small>
-          <div id="repoStatusList">
-      <main class="main">
-        <header class="topbar">
-
-          <div class="top-actions">
-            <button id="btnUno">☁ Carica Uno Energy CSV</button>
-            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
-            <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
-            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
-          </div>
+          <div id="repoStatusList"></div>
         </div>
-
         <div class="repo-toggle-panel" id="repoTogglePanel">
           <small>Gestisci repository</small>
           <div id="repoToggleList"></div>
@@ -58,10 +48,6 @@
 
     <main class="main">
       <header class="topbar">
-        <div>
-          <h1>Unoenergy Panel</h1>
-          <p>Monitoraggio e Riconciliazione Flussi Contratti Firmati v2.5</p>
-        </div>
         <div class="top-actions">
           <button id="btnUno">☁ Carica Unoenergy CSV</button>
           <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
@@ -210,7 +196,7 @@
             <button class="ghost" id="btnManualMatch">
               🔎 Confronta Dati
             </button>
-            <button class="violet" id="btnStickyAutoMatch">
+            <button class="orange" id="btnStickyAutoMatch">
               🤖 Match Automatico
             </button>
           </div>
@@ -399,19 +385,6 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
             Documento digitalizzato e verificato con successo rispetto ai
             tracciati core.
           </p>
-    <div id="modalCompare" class="modal">
-      <div class="modal-panel">
-        <h3 id="compareTitle">Confronto Tracciati</h3>
-        <div
-          class="diff-grid diff-grid-scroll"
-          id="compareDiffGrid"
-        ></div>
-        <div id="reconFooter" class="recon-footer" style="display: none">
-          <div id="reconStatus" class="recon-status pending"></div>
-          <div class="recon-footer-actions">
-            <button class="ghost" id="reconAnnulla" type="button">↺ Annulla tutto</button>
-            <button class="orange" id="reconAccoppia" type="button" disabled>✓ Accoppia record</button>
-          </div>
         </div>
       </div>
     </div>
