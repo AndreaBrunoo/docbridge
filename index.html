@@ -1,51 +1,40 @@
 <!doctype html>
 <html lang="it">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Unoenergy Premium Demo</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="brand">
-          <div class="brand-mark"><img style="width: 100%; height: auto;" src="images/logo-unoenergy.png" alt="DocBridge"></div>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unoenergy Premium Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><img style="width: 100%; height: auto;" src="images/logo-unoenergy.png" alt="DocBridge">
         </div>
-        <nav class="nav">
-          <button class="nav-item active" data-view="dashboard">
-            ✦ Dashboard
-          </button>
-          <button class="nav-item" data-view="consultazione">
-            ⌕ Consultazione
-          </button>
-          <button class="nav-item" id="nav-staging" data-view="staging">⇄ Area Staging</button>
-          <button class="nav-item" id="nav-manuale" data-view="manuale">
-            ＋ Caricamento manuale
-          </button>
-          <button class="nav-item" id="nav-users" data-view="users">🛡 Gestione utenti</button>
-        </nav>
-        <div class="repo-card-wrap">
-  <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
-    <small>Repository attive</small>
-    <div id="repoStatusList">
-      <div class="flow-status"><span class="dot green"></span> Unoenergy</div>
-      <div class="flow-status"><span class="dot green"></span> Postel</div>
-      <div class="flow-status"><span class="dot red"></span> Postel2</div>
-      <div class="flow-status"><span class="dot green"></span> Unoenergy2</div>
-      
-    </div>
-  </div>
-
-  <div class="repo-toggle-panel" id="repoTogglePanel">
-    <small>Gestisci repository</small>
-    <div id="repoToggleList"></div>
-  </div>
-</div>
-        <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
-        <button id="resetDemo" class="ghost full mt-sm" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati demo</button>
-      </aside>
-
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          ✦ Dashboard
+        </button>
+        <button class="nav-item" data-view="consultazione">
+          ⌕ Consultazione
+        </button>
+        <button class="nav-item staging-btn" data-view="staging">
+          ⇄ Area Staging
+          <span id="notificationDot" class="dot hidden"></span>
+        </button>
+        <button class="nav-item" id="nav-manuale" data-view="manuale">
+          ＋ Caricamento manuale
+        </button>
+        <button class="nav-item" id="nav-users" data-view="users">🛡 Gestione utenti</button>
+      </nav>
+      <div class="repo-card-wrap">
+        <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
+          <small>Repository attive</small>
+          <div id="repoStatusList">
       <main class="main">
         <header class="topbar">
 
@@ -55,146 +44,68 @@
             <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
             <button id="btnAutoMatch" class="success">✓ Match automatico</button>
           </div>
-          <div id="userBadge" class="user-badge" style="display:none"></div>
-        </header>
+        </div>
 
-<section id="dashboard" class="view active">
-          <div class="kpi-grid">
-            <div class="kpi">
-              <small>Match Automatici (AI)</small><b id="kpiAuto">0</b>
-            </div>
-            <div class="kpi">
-              <small>Match Manuali Operatore</small><b id="kpiManuale">0</b>
-            </div>
-            <div class="kpi">
-              <small>In attesa in Staging</small><b id="kpiStaging">0</b>
-            </div>
-            <div class="kpi">
-              <small>Anomalie Rilevate</small><b id="kpiAnom">0</b>
-            </div>
+        <div class="repo-toggle-panel" id="repoTogglePanel">
+          <small>Gestisci repository</small>
+          <div id="repoToggleList"></div>
+        </div>
+      </div>
+      <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
+      <button id="resetDemo" class="ghost full mt-sm" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati
+        demo</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1>Unoenergy Panel</h1>
+          <p>Monitoraggio e Riconciliazione Flussi Contratti Firmati v2.5</p>
+        </div>
+        <div class="top-actions">
+          <button id="btnUno">☁ Carica Unoenergy CSV</button>
+          <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+          <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
+          <button id="btnAutoMatch" class="success">✓ Match automatico</button>
+        </div>
+        <div id="userBadge" class="user-badge" style="display:none"></div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="kpi-grid">
+          <div class="kpi">
+            <small>Match Automatici</small><b id="kpiAuto">0</b>
           </div>
-          
-          <div class="grid">
-            <div class="card">
-              <div class="card-head"><h3>Anomalie Rilevate</h3></div>
-              <div id="anomChart" class="chart-bars"></div>
-            </div>
+          <div class="kpi">
+            <small>Match Manuali Operatore</small><b id="kpiManuale">0</b>
           </div>
-
-          <div class="grid two">
-            <div class="card">
-              <div class="card-head"><h3>Riconciliazione Flussi</h3></div>
-              <div id="matchChart" class="chart-bars"></div>
-            </div>
-            <div class="card">
-              <div class="card-head"><h3>Tipologia Commodity (Contratti Abbinati)</h3></div>
-              <div id="commodityChart" class="chart-bars"></div>
-            </div>
+          <div class="kpi">
+            <small>In attesa in Staging</small><b id="kpiStaging">0</b>
           </div>
-
-          <div class="grid">
-            <div class="card">
-              <div class="card-head"><h3>Log Eventi Sistema</h3></div>
-              <div id="timelineEvents" class="timeline"></div>
-            </div>
+          <div class="kpi">
+            <small>Anomalie Rilevate</small><b id="kpiAnom">0</b>
           </div>
-        </section>
+        </div>
 
-       <section id="consultazione" class="view">
-  <div class="card">
-    <div class="search-row wrap">
-      <input
-        type="text"
-        id="docSearch"
-        placeholder="Cerca per nome cliente, POD o ID..."
-        class="mega-search"
-      />
-      <select id="docCommodity" aria-label="Filtra per commodity">
-        <option value="">Tutte le commodity</option>
-        <option value="Energia Elettrica">Energia Elettrica</option>
-        <option value="Gas naturale">Gas naturale</option>
-      </select>
-      <select id="docSearchField" aria-label="Cerca per campo specifico">
-        <option value="">Tutti i campi</option>
-        <option value="cliente_codice_fiscale">Codice fiscale</option>
-        <option value="cliente_partita_iva">Partita IVA</option>
-        <option value="pde_external_id">PD External ID</option>
-        <option value="codice_pod">Codice POD</option>
-        <option value="codice_pdr">Codice PDR</option>
-        <option value="data_firma_contratto">Data firma</option>
-      </select>
-    </div>
-  </div>
-  <div class="card">
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>ID Documento</th>
-            <th>Cliente</th>
-            <th>Commodity</th>
-            <th>Data Firma</th>
-            <th>Abbinamento</th>
-            <th class="col-action">Azione</th>
-          </tr>
-        </thead>
-        <tbody id="docTableBody"></tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-        <section id="staging" class="view">
+        <div class="grid">
           <div class="card">
-            <div class="search-row">
-              <input
-                type="text"
-                id="stagingSearch"
-                placeholder="Filtra code di staging..."
-                class="mega-search"
-              />
+            <div class="card-head">
+              <h3>Anomalie Rilevate</h3>
             </div>
+            <div id="anomChart" class="chart-bars"></div>
           </div>
-          <div class="grid two">
-            <div class="card">
-              <div class="card-head">
-                <h3>Coda Uno Energy (Signed)</h3>
-                <span class="pill">CSV Ingest</span>
-              </div>
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Cliente</th>
-                      <th>POD/PDR</th>
-                      <th class="col-action">Azione</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tableUnoBody"></tbody>
-                </table>
-              </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h3>Riconciliazione Flussi</h3>
             </div>
-            <div class="card">
-              <div class="card-head">
-                <h3>Coda Postel (Archived)</h3>
-                <span class="pill">WS Ingest</span>
-              </div>
-              <div class="table-wrap">
-                <table class="data-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Cliente</th>
-                      <th>POD/PDR</th>
-                      <th class="col-action">Azione</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tablePostelBody"></tbody>
-                </table>
-              </div>
-            </div>
+            <div id="matchChart" class="chart-bars"></div>
           </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Tipologia Commodity (Contratti Abbinati)</h3>
           <div class="card sticky-match" id="stickyMatch" style="display: none">
             <div id="stickyMatchText"></div>
             <div class="top-actions">
@@ -205,199 +116,300 @@
                 🤖 Match Automatico
               </button>
             </div>
+            <div id="commodityChart" class="chart-bars"></div>
           </div>
-        </section>
+        </div>
 
-        <section id="manuale" class="view">
+        <div class="grid">
           <div class="card">
             <div class="card-head">
-              <h3>Nuovo record di test</h3>
-              <button id="fillDemo" class="ghost">
-                ⚡ Inserisci dati demo
-              </button>
+              <h3>Log Eventi Sistema</h3>
             </div>
-            <form id="manualForm" onsubmit="return false;">
-              <div class="form-grid">
-                <div class="field">
-                  <label for="f_cliente_nome_cognome">Fornitura : Cliente : Nome e Cognome</label
-                  ><input type="text" id="f_cliente_nome_cognome" name="cliente_nome_cognome" />
-                </div>
-                <div class="field">
-                  <label for="f_cliente_codice_fiscale">Fornitura : Cliente : Codice fiscale</label
-                  ><input type="text" id="f_cliente_codice_fiscale" name="cliente_codice_fiscale" />
-                </div>
-                <div class="field">
-                  <label for="f_cliente_partita_iva">Fornitura : Cliente : Partita IVA</label
-                  ><input type="text" id="f_cliente_partita_iva" name="cliente_partita_iva" />
-                </div>
-                <div class="field">
-                  <label for="f_codice_pod_pdr" id="f_codice_pod_pdr_label">Codice POD</label
-                  ><input type="text" id="f_codice_pod_pdr" name="codice_pod" />
-                </div>
-                <div class="field">
-                  <label for="f_data_firma_contratto">Data firma contratto</label
-                  ><input type="date" id="f_data_firma_contratto" name="data_firma_contratto" />
-                </div>
-                <div class="field">
-                  <label for="f_commodity">Commodity</label
-                  ><select id="f_commodity" name="commodity">
-                    <option value="Energia Elettrica">Energia Elettrica</option>
-                    <option value="Gas naturale">Gas naturale</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="f_codice_prodotto" id="f_codice_prodotto_label">Codice Prodotto EE</label
-                  ><input type="text" id="f_codice_prodotto" name="codice_prodotto_ee" />
-                </div>
-                <div class="field">
-                  <label for="f_contract_account">Contract Account</label
-                  ><input type="text" id="f_contract_account" name="contract_account" />
-                </div>
-                <div class="field">
-                  <label for="f_pde_external_id">Pde external id</label
-                  ><input type="text" id="f_pde_external_id" name="pde_external_id" />
-                </div>
-                <div class="field">
-                  <label for="f_cliente_codice_identificativo_univoco">Fornitura : Cliente : Codice Identificativo Univoco</label
-                  ><input type="text" id="f_cliente_codice_identificativo_univoco" name="cliente_codice_identificativo_univoco" />
-                </div>
-                <div class="field">
-                  <label for="f_cliente_record_type_testuale">Fornitura : Cliente : Record Type Testuale</label
-                  ><select id="f_cliente_record_type_testuale" name="cliente_record_type_testuale">
-                    <option value="Retail">Retail</option>
-                    <option value="Business">Business</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="f_opportunita_tipo_record">Fornitura : Opportunita : Tipo di record Opportunita</label
-                  ><select id="f_opportunita_tipo_record" name="opportunita_tipo_record">
-                    <option value="Switch">Switch</option>
-                    <option value="Nuova attivazione">Nuova attivazione</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="f_id_forniture">ID forniture</label
-                  ><input type="text" id="f_id_forniture" name="id_forniture" />
-                </div>
-                <div class="field">
-                  <label for="f_opportunita_nome">Fornitura : Opportunita : Nome opportunita</label
-                  ><input type="text" id="f_opportunita_nome" name="opportunita_nome" />
-                </div>
-                <div class="field">
-                  <label for="f_opportunita_commodity">Fornitura : Opportunita : Commodity</label
-                  ><select id="f_opportunita_commodity" name="opportunita_commodity">
-                    <option value="Power">Power</option>
-                    <option value="Gas">Gas</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="f_stato">STATO</label
-                  ><select id="f_stato" name="stato">
-                    <option value="Attivo">Attivo</option>
-                    <option value="Sospeso">Sospeso</option>
-                    <option value="Chiuso">Chiuso</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="f_data_certificazione">Data Certificazione</label
-                  ><input type="date" id="f_data_certificazione" name="data_certificazione" />
-                </div>
-              </div>
-              <div class="form-actions">
-                <button type="button" class="primary" id="createUno">
-                  Inietta in Staging
-                </button>
-              </div>
-            </form>
+            <div id="timelineEvents" class="timeline"></div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section id="api" class="view">
-          <div class="grid two">
-            <div class="card code-card">
-              <h3>API simulate</h3>
-              <pre>
-POST /api/v1/ingest/unoenergy
-GET  /api/v1/documents
-GET  /api/v1/staging/queuesigned</pre
-              >
-            </div>
-            <div class="card code-card">
-              <h3>CLI staging</h3>
-              <pre>
-db-queue list unoenergy
-db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre
-              >
-            </div>
+      <section id="consultazione" class="view">
+        <div class="card">
+          <div class="search-row wrap">
+            <input type="text" id="docSearch" placeholder="Cerca per nome cliente, POD o ID..." class="mega-search" />
+            <select id="docCommodity" aria-label="Filtra per commodity">
+              <option value="">Tutte le commodity</option>
+              <option value="Energia Elettrica">Energia Elettrica</option>
+              <option value="Gas naturale">Gas naturale</option>
+            </select>
+            <select id="docSearchField" aria-label="Cerca per campo specifico">
+              <option value="">Tutti i campi</option>
+              <option value="cliente_codice_fiscale">Codice fiscale</option>
+              <option value="cliente_partita_iva">Partita IVA</option>
+              <option value="pde_external_id">PD External ID</option>
+              <option value="codice_pod">Codice POD</option>
+              <option value="codice_pdr">Codice PDR</option>
+              <option value="data_firma_contratto">Data firma</option>
+            </select>
           </div>
-        </section>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID Documento</th>
+                  <th>Cliente</th>
+                  <th>Commodity</th>
+                  <th>Data Firma</th>
+                  <th>Abbinamento</th>
+                  <th class="col-action">Azione</th>
+                </tr>
+              </thead>
+              <tbody id="docTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-        <section id="users" class="view">
+      <section id="staging" class="view">
+        <div class="card">
+          <div class="search-row">
+            <input type="text" id="stagingSearch" placeholder="Filtra code di staging..." class="mega-search" />
+          </div>
+        </div>
+        <div class="grid two">
           <div class="card">
             <div class="card-head">
-              <h3>Gestione utenti</h3>
-              <span class="pill">Solo DPO</span>
+              <h3>Coda Unoenergy (Signed)</h3>
+              <span class="pill">CSV Ingest</span>
             </div>
             <div class="table-wrap">
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Username</th>
-                    <th>Ruolo</th>
-                    <th>Creato il</th>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>POD/PDR</th>
+                    <th class="col-action">Azione</th>
                   </tr>
                 </thead>
-                <tbody id="usersTableBody"></tbody>
+                <tbody id="tableUnoBody"></tbody>
               </table>
             </div>
           </div>
-        </section>
-      </main>
-    </div>
-
-    <div id="loginOverlay" class="login-overlay">
-      <form id="loginForm" class="login-panel" onsubmit="return false;">
-        <div class="login-brand">
-          <div class="brand-mark">D</div>
-          <div>
-            <strong>DocBridge</strong>
-            <span>Accesso demo</span>
+          <div class="card">
+            <div class="card-head">
+              <h3>Coda Postel (Archived)</h3>
+              <span class="pill">WS Ingest</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>POD/PDR</th>
+                    <th class="col-action">Azione</th>
+                  </tr>
+                </thead>
+                <tbody id="tablePostelBody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <p class="login-hint">Seleziona un utente demo per accedere.</p>
-        <div id="loginUserList" class="login-user-list"></div>
-        <div class="field">
-          <label for="loginPassword">Password</label>
-          <input type="password" id="loginPassword" name="password" autocomplete="off" />
-        </div>
-        <div id="loginError" class="login-error"></div>
-        <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
-      </form>
-    </div>
-
-    <div id="drawer" class="drawer">
-      <div class="drawer-panel">
-        <button class="drawer-close" id="closeDrawer">×</button>
-        <h3 id="drawerTitle">Dettagli Documento</h3>
-        <div class="meta-grid" id="drawerMetaGrid"></div>
-        <div class="pdf-viewer">
-          <div class="pdf-page">
-            <small>Anteprima PDF generata da DocBridge AI</small>
-            <h2 id="pdfClientName">Cliente</h2>
-            <p>
-              <span id="pdfPodLabel">Identificativo POD/PDR:</span>
-              <span class="highlight" id="pdfPod"></span>
-            </p>
-            <p>Sottoscritto il: <span id="pdfDate"></span></p>
-            <p class="pdf-footnote">
-              Documento digitalizzato e verificato con successo rispetto ai
-              tracciati core.
-            </p>
+        <div class="card sticky-match" id="stickyMatch" style="display: none">
+          <div id="stickyMatchText"></div>
+          <div class="top-actions">
+            <button class="ghost" id="btnManualMatch">
+              🔎 Confronta Dati
+            </button>
+            <button class="violet" id="btnStickyAutoMatch">
+              🤖 Match Automatico
+            </button>
           </div>
+        </div>
+      </section>
+
+      <section id="manuale" class="view">
+        <div class="card">
+          <div class="card-head">
+            <h3>Nuovo record di test</h3>
+            <button id="fillDemo" class="ghost">
+              ⚡ Inserisci dati demo
+            </button>
+          </div>
+          <form id="manualForm" onsubmit="return false;">
+            <div class="form-grid">
+              <div class="field">
+                <label for="f_cliente_nome_cognome">Fornitura : Cliente : Nome e Cognome</label><input type="text"
+                  id="f_cliente_nome_cognome" name="cliente_nome_cognome" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_codice_fiscale">Fornitura : Cliente : Codice fiscale</label><input type="text"
+                  id="f_cliente_codice_fiscale" name="cliente_codice_fiscale" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_partita_iva">Fornitura : Cliente : Partita IVA</label><input type="text"
+                  id="f_cliente_partita_iva" name="cliente_partita_iva" />
+              </div>
+              <div class="field">
+                <label for="f_codice_pod_pdr" id="f_codice_pod_pdr_label">Codice POD</label><input type="text"
+                  id="f_codice_pod_pdr" name="codice_pod" />
+              </div>
+              <div class="field">
+                <label for="f_data_firma_contratto">Data firma contratto</label><input type="date"
+                  id="f_data_firma_contratto" name="data_firma_contratto" />
+              </div>
+              <div class="field">
+                <label for="f_commodity">Commodity</label><select id="f_commodity" name="commodity">
+                  <option value="Energia Elettrica">Energia Elettrica</option>
+                  <option value="Gas naturale">Gas naturale</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_codice_prodotto" id="f_codice_prodotto_label">Codice Prodotto EE</label><input type="text"
+                  id="f_codice_prodotto" name="codice_prodotto_ee" />
+              </div>
+              <div class="field">
+                <label for="f_contract_account">Contract Account</label><input type="text" id="f_contract_account"
+                  name="contract_account" />
+              </div>
+              <div class="field">
+                <label for="f_pde_external_id">Pde external id</label><input type="text" id="f_pde_external_id"
+                  name="pde_external_id" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_codice_identificativo_univoco">Fornitura : Cliente : Codice Identificativo
+                  Univoco</label><input type="text" id="f_cliente_codice_identificativo_univoco"
+                  name="cliente_codice_identificativo_univoco" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_record_type_testuale">Fornitura : Cliente : Record Type Testuale</label><select
+                  id="f_cliente_record_type_testuale" name="cliente_record_type_testuale">
+                  <option value="Retail">Retail</option>
+                  <option value="Business">Business</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_opportunita_tipo_record">Fornitura : Opportunita : Tipo di record
+                  Opportunita</label><select id="f_opportunita_tipo_record" name="opportunita_tipo_record">
+                  <option value="Switch">Switch</option>
+                  <option value="Nuova attivazione">Nuova attivazione</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_id_forniture">ID forniture</label><input type="text" id="f_id_forniture"
+                  name="id_forniture" />
+              </div>
+              <div class="field">
+                <label for="f_opportunita_nome">Fornitura : Opportunita : Nome opportunita</label><input type="text"
+                  id="f_opportunita_nome" name="opportunita_nome" />
+              </div>
+              <div class="field">
+                <label for="f_opportunita_commodity">Fornitura : Opportunita : Commodity</label><select
+                  id="f_opportunita_commodity" name="opportunita_commodity">
+                  <option value="Power">Power</option>
+                  <option value="Gas">Gas</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_stato">STATO</label><select id="f_stato" name="stato">
+                  <option value="Attivo">Attivo</option>
+                  <option value="Sospeso">Sospeso</option>
+                  <option value="Chiuso">Chiuso</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_data_certificazione">Data Certificazione</label><input type="date"
+                  id="f_data_certificazione" name="data_certificazione" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="primary" id="createUno">
+                Inietta in Staging
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="api" class="view">
+        <div class="grid two">
+          <div class="card code-card">
+            <h3>API simulate</h3>
+            <pre>
+POST /api/v1/ingest/unoenergy
+GET  /api/v1/documents
+GET  /api/v1/staging/queuesigned</pre>
+          </div>
+          <div class="card code-card">
+            <h3>CLI staging</h3>
+            <pre>
+db-queue list unoenergy
+db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="users" class="view">
+        <div class="card">
+          <div class="card-head">
+            <h3>Gestione utenti</h3>
+            <span class="pill">Solo DPO</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Ruolo</th>
+                  <th>Creato il</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loginOverlay" class="login-overlay">
+    <form id="loginForm" class="login-panel" onsubmit="return false;">
+      <div class="login-brand">
+        <div class="brand-mark">D</div>
+        <div>
+          <strong>DocBridge</strong>
+          <span>Accesso demo</span>
         </div>
       </div>
-    </div>
+      <p class="login-hint">Seleziona un utente demo per accedere.</p>
+      <div id="loginUserList" class="login-user-list"></div>
+      <div class="field">
+        <label for="loginPassword">Password</label>
+        <input type="password" id="loginPassword" name="password" autocomplete="off" />
+      </div>
+      <div id="loginError" class="login-error"></div>
+      <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
+    </form>
+  </div>
 
+  <div id="drawer" class="drawer">
+    <div class="drawer-panel">
+      <button class="drawer-close" id="closeDrawer">×</button>
+      <h3 id="drawerTitle">Dettagli Documento</h3>
+      <div class="meta-grid" id="drawerMetaGrid"></div>
+      <div class="pdf-viewer">
+        <div class="pdf-page">
+          <small>Anteprima PDF generata da DocBridge AI</small>
+          <h2 id="pdfClientName">Cliente</h2>
+          <p>
+            <span id="pdfPodLabel">Identificativo POD/PDR:</span>
+            <span class="highlight" id="pdfPod"></span>
+          </p>
+          <p>Sottoscritto il: <span id="pdfDate"></span></p>
+          <p class="pdf-footnote">
+            Documento digitalizzato e verificato con successo rispetto ai
+            tracciati core.
+          </p>
     <div id="modalCompare" class="modal">
       <div class="modal-panel">
         <h3 id="compareTitle">Confronto Tracciati</h3>
@@ -412,13 +424,29 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre
             <button class="orange" id="reconAccoppia" type="button" disabled>✓ Accoppia record</button>
           </div>
         </div>
-        <div class="form-actions">
-          <button class="ghost" id="closeModal">Chiudi finestra</button>
-        </div>
       </div>
     </div>
+  </div>
 
-    <div class="toast-host" id="toastHost"></div>
-    <script src="app.js"></script>
-  </body>
+  <div id="modalCompare" class="modal">
+    <div class="modal-panel">
+      <h3 id="compareTitle">Confronto Tracciati</h3>
+      <div class="diff-grid diff-grid-scroll" id="compareDiffGrid"></div>
+      <div id="reconFooter" class="recon-footer" style="display: none">
+        <div id="reconStatus" class="recon-status pending"></div>
+        <div class="recon-footer-actions">
+          <button class="ghost" id="reconAnnulla" type="button">↺ Annulla tutto</button>
+          <button class="violet" id="reconAccoppia" type="button" disabled>✓ Accoppia record</button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="ghost" id="closeModal">Chiudi finestra</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost"></div>
+  <script src="app.js"></script>
+</body>
+
 </html>
