@@ -694,6 +694,158 @@ select:focus {
 .dark .diff.changed b {
   color: #f87171 !important;
 }
+
+/* --- EDITOR UNIFICATO CAMPI IN MISMATCH --- */
+.btn-edit-mismatch {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 6px;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.1s, background 0.15s;
+  line-height: 1;
+}
+.diff.changed {
+  position: relative;
+}
+.diff.changed:hover .btn-edit-mismatch {
+  opacity: 1;
+}
+.btn-edit-mismatch:hover {
+  background: rgba(168, 85, 247, 0.15);
+  transform: scale(1.15);
+}
+
+.diff-merged {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #f3e8ff 0%, #ede9fe 100%) !important;
+  border: 2px solid var(--violet) !important;
+  padding: 14px 16px;
+  box-shadow: 0 4px 16px rgba(168, 85, 247, 0.2);
+  animation: diffMerge 0.3s ease;
+}
+.diff-merged small {
+  color: var(--violet) !important;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px;
+}
+.diff-merged b {
+  color: #6b21a8 !important;
+}
+.diff-merged-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.diff-merged-input {
+  flex: 1;
+  border: 1px solid var(--violet);
+  background: #fff;
+  color: var(--text);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.diff-merged-input:focus {
+  outline: none;
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.2);
+}
+.diff-merged-apply {
+  background: var(--violet);
+  color: #fff;
+  border: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.diff-merged-apply:hover {
+  filter: brightness(1.1);
+}
+.diff-merged-cancel {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 12px;
+  cursor: pointer;
+}
+.diff-merged-cancel:hover {
+  background: var(--panel-nested);
+}
+.diff-merged-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.diff-merged-hint b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.diff-merged.confirmed {
+  background: var(--violet) !important;
+  border-color: var(--violet) !important;
+}
+.diff-merged.confirmed small {
+  color: #fff !important;
+  opacity: 0.9;
+}
+.diff-merged.confirmed b {
+  color: #fff !important;
+  font-size: 16px;
+  font-weight: 700;
+}
+.diff-merged.confirmed .diff-merged-hint {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 500;
+}
+.diff-merged.confirmed .diff-merged-hint b {
+  color: #fff !important;
+  font-weight: 600;
+}
+
+@keyframes diffMerge {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Dark mode per editor unificato */
+.dark .diff-merged {
+  background: linear-gradient(135deg, #2e1065 0%, #1e1b4b 100%) !important;
+  border-color: var(--violet) !important;
+}
+.dark .diff-merged-input {
+  background: var(--panel-nested);
+  color: var(--text);
+  border-color: var(--violet);
+}
+.dark .diff-merged.confirmed {
+  background: var(--violet) !important;
+}
+.dark .diff-merged.confirmed b,
+.dark .diff-merged.confirmed small {
+  color: #fff !important;
+}
 .toast-host {
   position: fixed;
   right: 22px;
@@ -739,7 +891,60 @@ select:focus {
   background: var(--line);
 }
 
-/* --- LOGICA HOVER PER TASTO ELIMINA RIGA --- */
+/* --- FOOTER RICONCILIAZIONE GUIDATA --- */
+.recon-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+  border: 1px solid var(--violet);
+  border-radius: 14px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(168, 85, 247, 0.1);
+}
+.recon-status {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.recon-status.pending {
+  color: #6b21a8;
+}
+.recon-status.ok {
+  color: #15803d;
+  font-weight: 600;
+}
+.recon-footer-actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.recon-footer-actions button {
+  padding: 9px 16px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.recon-footer-actions button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.5);
+}
+.recon-footer-actions button:disabled:hover {
+  filter: grayscale(0.5);
+}
+.dark .recon-footer {
+  background: linear-gradient(135deg, #2e1065 0%, #1e1b4b 100%);
+  border-color: var(--violet);
+}
+.dark .recon-status.pending {
+  color: #d8b4fe;
+}
+.dark .recon-status.ok {
+  color: #4ade80;
+}
 .btn-delete-row {
   opacity: 0;
   background: transparent;
