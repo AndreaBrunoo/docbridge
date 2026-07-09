@@ -49,9 +49,9 @@ const CSV_HEADER_MAP = {
 // sistema di autenticazione reale. In produzione le password andrebbero
 // hashate lato server (es. bcrypt) e mai inviate/transitate in chiaro.
 const DEMO_USERS = [
-  { id: "u_vis", username: "visitatore", role: "Visualizzatore", password: "demo", createdAt: "2026-01-15 09:00" },
-  { id: "u_tec", username: "tecnico",    role: "Tecnico",        password: "demo", createdAt: "2026-01-15 09:00" },
-  { id: "u_dpo", username: "dpo",        role: "DPO",            password: "demo", createdAt: "2026-01-15 09:00" },
+  { id: "u_vis", username: "Mario", role: "Consultatore", password: "demo", createdAt: "2026-01-15 09:00" },
+  { id: "u_tec", username: "Luigi", role: "Tecnico", password: "demo", createdAt: "2026-01-15 09:00" },
+  { id: "u_dpo", username: "Margherita", role: "DPO", password: "demo", createdAt: "2026-01-15 09:00" },
 ];
 
 const state = normalizeState(loadState());
@@ -246,6 +246,7 @@ function changeUserRole(userId, newRole) {
 
 function save() {
   try {
+    updateNotificationDot();
     localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
     return true;
   } catch (err) {
@@ -331,7 +332,7 @@ function confidence(u, p) {
         u[k] &&
         p[k] &&
         u[k].toString().trim().toLowerCase() ===
-          p[k].toString().trim().toLowerCase()
+        p[k].toString().trim().toLowerCase()
       ) {
         matchCount += weights[k];
         reasons.push(k);
@@ -558,7 +559,7 @@ function renderUserBadge() {
         <span class="role-pill role-${u.role.toLowerCase()}">${escapeHtml(u.role)}</span>
       </div>
     </div>
-    <button id="logoutBtn" class="ghost" title="Esci dalla sessione">⎋ Esci</button>
+    <button id="logoutBtn" class="ghostrosso" title="Esci dalla sessione">⎋ Esci</button>
   `;
   const lo = document.getElementById("logoutBtn");
   if (lo) lo.onclick = handleLogout;
@@ -676,7 +677,7 @@ function renderDashboard() {
     state.metrics.anom.pod = 0;
     state.metrics.anom.name = 0;
   }
-  
+
   const totalAnomalies = Object.values(state.metrics.anom).reduce((a, b) => a + b, 0);
 
   // Aggiorniamo i testi dei KPI a schermo
@@ -691,7 +692,7 @@ function renderDashboard() {
     const pComm = totalAnomalies > 0 ? Math.round((state.metrics.anom.commodity / totalAnomalies) * 100) : 0;
     const pPod = totalAnomalies > 0 ? Math.round((state.metrics.anom.pod / totalAnomalies) * 100) : 0;
     const pName = totalAnomalies > 0 ? Math.round((state.metrics.anom.name / totalAnomalies) * 100) : 0;
-    
+
     aChart.innerHTML = `
       <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${state.metrics.anom.commodity}</span></div>
       <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${state.metrics.anom.pod}</span></div>
@@ -733,7 +734,7 @@ function renderDashboard() {
 
 function matchColor(score) {
   const s = Math.max(0, Math.min(100, score));
-  const hue = Math.round(s * 1.2); 
+  const hue = Math.round(s * 1.2);
   return `hsl(${hue}, 75%, 42%)`;
 }
 
@@ -795,12 +796,12 @@ function renderConsultazione() {
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
-  
-  const matchesOnly = state.matched.map((d) => ({ 
-    d, 
-    emoji: d.tipo_match === "Automatico" ? "🤖" : "✋"
+
+  const matchesOnly = state.matched.map((d) => ({
+    d,
+    emoji: d.tipo_match === "Automatico" || "Automatico (da XML con ID valido)" ? "🤖" : "✋"
   }));
-  
+
   let count = 0;
   matchesOnly.forEach(({ d, emoji }) => {
     if (comm && d.commodity !== comm) return;
@@ -816,7 +817,7 @@ function renderConsultazione() {
     }
 
     count++;
-    
+
     const tr = document.createElement("tr");
     const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
     const provenanceLabel = getRecordProvenanceLabel(d);
@@ -835,7 +836,7 @@ function renderConsultazione() {
       </td>
       <td>${deleteBtn}</td>
     `;
-    
+
     tr.onclick = (e) => {
       if (e.target.classList.contains('btn-delete-row')) {
         e.stopPropagation();
@@ -846,9 +847,14 @@ function renderConsultazione() {
     };
     b.appendChild(tr);
   });
-  
+
   if (count === 0)
     b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>';
+}
+
+// Area Staging: gestione delle code di contratti Uno Energy e Postel, con selezione e confronto manuale.
+function getStagingCount() {
+  return state.queuesigned.length + state.queuearchived.length;
 }
 
 function renderStaging() {
@@ -910,11 +916,25 @@ function renderStaging() {
     };
     bPostel.appendChild(tr);
   });
-  
+
   if (state.queuesigned.length === 0)
     bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
     bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
+    dot.classList.add("hidden");
+}
+
+function updateNotificationDot() {
+  const dot = document.getElementById("notificationDot");
+
+  const current = getStagingCount();
+  const lastSeen = parseInt(localStorage.getItem("stagingLastSeenCount")) || 0;
+
+  if (current > lastSeen) {
+    dot.classList.remove("hidden");
+  } else {
+    dot.classList.add("hidden");
+  }
 }
 
 function checkStickyMatch() {
@@ -1064,12 +1084,12 @@ function openManualCompare() {
       const safeP = escapeHtml(selectedPostel[k] || "—");
       if (isIgnoredConflict || eq) {
         b.innerHTML += `
-    <div class="diff ${cls}"><small>${label} (Uno Energy): </small><b>${safeU}</b></div>
+    <div class="diff ${cls}"><small>${label} (Unoenergy): </small><b>${safeU}</b></div>
     <div class="diff ${cls}"><small>${label} (Postel): </small><b>${safeP}</b></div>
    `;
       } else {
         b.innerHTML += `
-    <div class="diff ${cls}" data-key="${k}" data-side="u"><small>${label} (Uno Energy): </small><b>${safeU}</b><button class="btn-edit-mismatch" title="Unifica partendo dal valore Uno Energy" aria-label="Modifica campo Uno Energy" data-source="u">✏️</button></div>
+    <div class="diff ${cls}" data-key="${k}" data-side="u"><small>${label} (Unoenergy): </small><b>${safeU}</b><button class="btn-edit-mismatch" title="Unifica partendo dal valore Unoenergy" aria-label="Modifica campo Unoenergy" data-source="u">✏️</button></div>
     <div class="diff ${cls}" data-key="${k}" data-side="p"><small>${label} (Postel): </small><b>${safeP}</b><button class="btn-edit-mismatch" title="Unifica partendo dal valore Postel" aria-label="Modifica campo Postel" data-source="p">✏️</button></div>
    `;
       }
@@ -1187,7 +1207,7 @@ function escapeHtml(v) {
 // `source` indica quale lato ha generato la matita cliccata: "u" → pre-popola
 // con il valore Uno Energy, "p" → pre-popola con il valore Postel.
 function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
-  const label = diffUno.querySelector("small").textContent.replace(/\s*\(Uno Energy\):\s*$/, "");
+  const label = diffUno.querySelector("small").textContent.replace(/\s*\(Unoenergy\):\s*$/, "");
   const valU = selectedUno[key] ?? "";
   const valP = selectedPostel[key] ?? "";
   // Default: il valore del lato da cui l'utente ha cliccato la matita
@@ -1202,7 +1222,7 @@ function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
       <button class="diff-merged-apply" type="button">Applica</button>
       <button class="diff-merged-cancel ghost" type="button">Annulla</button>
     </div>
-    <div class="diff-merged-hint">Valore attuale: Uno Energy = <b>${escapeHtml(valU || "—")}</b> · Postel = <b>${escapeHtml(valP || "—")}</b></div>
+    <div class="diff-merged-hint">Valore attuale: Unoenergy = <b>${escapeHtml(valU || "—")}</b> · Postel = <b>${escapeHtml(valP || "—")}</b></div>
   `;
   // Sostituisci i due riquadri consecutivi con quello unico
   diffPostel.replaceWith(wrapper);
@@ -1427,15 +1447,14 @@ function randomNomeOpportunita() {
 }
 // --- Gestione visuale "Repository attive" (solo demo, nessun salvataggio) ---
 const repoManaged = [
-  { id: "uno", name: "Uno Energy", active: true, category: "Uno Energy" },
-  { id: "uno2", name: "Uno Energy 2", active: false, category: "Uno Energy" },
+  { id: "uno", name: "Unoenergy", active: true, category: "Unoenergy" },
   { id: "postel1", name: "Postel1", active: true, category: "Postel" },
   { id: "postel2", name: "Postel2", active: false, category: "Postel" },
 ];
 
 function getRepoCategory(repo) {
   const name = (repo?.name || "").toLowerCase();
-  return name.includes("postel") ? "Postel" : "Uno Energy";
+  return name.includes("postel") ? "Postel" : "Unoenergy";
 }
 
 function getActiveRepoCount() {
@@ -1447,7 +1466,7 @@ function getActiveRepoCountByCategory(category) {
 }
 
 function hasRequiredRepoSelection() {
-  return getActiveRepoCountByCategory("Postel") >= 1 && getActiveRepoCountByCategory("Uno Energy") >= 1;
+  return getActiveRepoCountByCategory("Postel") >= 1 && getActiveRepoCountByCategory("Unoenergy") >= 1;
 }
 
 // Disegna il riquadro principale nella sidebar, mostrando solo i repository attivi
@@ -1473,7 +1492,7 @@ function renderRepoTogglePanel() {
 
   const grouped = [
     { title: "Postel", items: repoManaged.filter((r) => getRepoCategory(r) === "Postel") },
-    { title: "Uno Energy", items: repoManaged.filter((r) => getRepoCategory(r) === "Uno Energy") },
+    { title: "Unoenergy", items: repoManaged.filter((r) => getRepoCategory(r) === "Unoenergy") },
   ];
 
   list.innerHTML = grouped
@@ -1512,7 +1531,7 @@ function renderRepoTogglePanel() {
       if (!repo) return;
 
       const category = getRepoCategory(repo);
-      const otherCategory = category === "Postel" ? "Uno Energy" : "Postel";
+      const otherCategory = category === "Postel" ? "Unoenergy" : "Postel";
       const activeInCategory = getActiveRepoCountByCategory(category);
       const activeInOtherCategory = getActiveRepoCountByCategory(otherCategory);
 
@@ -1539,7 +1558,7 @@ function renderRepoTogglePanel() {
       }
 
       if (!hasRequiredRepoSelection()) {
-        toast("Seleziona almeno un repository Postel e uno Uno Energy.");
+        toast("Seleziona almeno un repository Postel e uno Unoenergy.");
         return;
       }
 
@@ -1595,12 +1614,12 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
 window.addEventListener("DOMContentLoaded", () => {
   renderRepoStatusList();
 
-document.getElementById("repoCard").addEventListener("click", (e) => {
-  e.stopPropagation();
-  toggleRepoPanel();
-});
-document.getElementById("repoTogglePanel").addEventListener("click", (e) => e.stopPropagation());
-document.addEventListener("click", () => toggleRepoPanel(false));
+  document.getElementById("repoCard").addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleRepoPanel();
+  });
+  document.getElementById("repoTogglePanel").addEventListener("click", (e) => e.stopPropagation());
+  document.addEventListener("click", () => toggleRepoPanel(false));
   if (state.dark) {
     document.body.classList.add("dark");
     document.getElementById("themeToggle").innerHTML = "☀️ White mode";
@@ -1608,7 +1627,7 @@ document.addEventListener("click", () => toggleRepoPanel(false));
     document.body.classList.remove("dark");
     document.getElementById("themeToggle").innerHTML = "🌙 Dark mode";
   }
-  
+
   initData();
 
   // --- Ruoli: mostra login se non c'è una sessione attiva ---
@@ -1638,7 +1657,7 @@ document.addEventListener("click", () => toggleRepoPanel(false));
       render();
     };
   });
-  
+
   document.getElementById("btnUno").onclick = () => document.getElementById("csvInput").click();
   document.getElementById("csvInput").onchange = (e) => {
     const file = e.target.files[0];
@@ -1647,6 +1666,39 @@ document.addEventListener("click", () => toggleRepoPanel(false));
     reader.onload = () => {
       try {
         const records = parseCSV(reader.result);
+
+        // Check for duplicate PD External IDs in consultation
+        let hasDuplicate = false;
+        let duplicateId = null;
+
+        for (const record of records) {
+          const pdeExternalId = record.pde_external_id;
+          if (pdeExternalId && pdeExternalId.trim() !== "" &&
+            pdeExternalId.trim() !== "null" && pdeExternalId.trim() !== "undefined") {
+
+            const trimmedId = pdeExternalId.trim();
+            const existingRecord = state.matched.find(r =>
+              r.pde_external_id &&
+              r.pde_external_id.trim() === trimmedId
+            );
+
+            if (existingRecord) {
+              hasDuplicate = true;
+              duplicateId = trimmedId;
+              break;
+            }
+          }
+        }
+
+        if (hasDuplicate) {
+          // Show error and log the event
+          const errorMsg = `Errore: Documento con PD External ID "${duplicateId}" già presente in consultazione. Il file non è stato caricato.`;
+          toast(errorMsg);
+          logEvent(state, errorMsg);
+          return; // Exit without loading the file
+        }
+
+        // No duplicates found, proceed with normal loading
         state.queuesigned.push(...records);
         state.lastUnoId = records[records.length - 1].id;
         logEvent(state, `File caricato: ${records.length} contratti aggiunti in Staging`);
@@ -1660,7 +1712,7 @@ document.addEventListener("click", () => toggleRepoPanel(false));
     reader.readAsText(file);
     e.target.value = "";
   };
-  
+
   document.getElementById("btnPostel").onclick = () => {
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -1681,84 +1733,84 @@ document.addEventListener("click", () => toggleRepoPanel(false));
 
           // Extract common fields - adjust based on actual XML structure
           record.cliente_nome_cognome = xmlDoc.querySelector("cliente_nome_cognome")?.textContent ||
-                                       xmlDoc.querySelector("ClienteNomeCognome")?.textContent ||
-                                       xmlDoc.querySelector("nome_cognome")?.textContent ||
-                                       "Cliente da XML";
+            xmlDoc.querySelector("ClienteNomeCognome")?.textContent ||
+            xmlDoc.querySelector("nome_cognome")?.textContent ||
+            "Cliente da XML";
 
           record.cliente_codice_fiscale = xmlDoc.querySelector("cliente_codice_fiscale")?.textContent ||
-                                         xmlDoc.querySelector("CodiceFiscale")?.textContent ||
-                                         xmlDoc.querySelector("codice_fiscale")?.textContent || "";
+            xmlDoc.querySelector("CodiceFiscale")?.textContent ||
+            xmlDoc.querySelector("codice_fiscale")?.textContent || "";
 
           record.cliente_partita_iva = xmlDoc.querySelector("cliente_partita_iva")?.textContent ||
-                                      xmlDoc.querySelector("PartitaIVA")?.textContent ||
-                                      xmlDoc.querySelector("partita_iva")?.textContent || "";
+            xmlDoc.querySelector("PartitaIVA")?.textContent ||
+            xmlDoc.querySelector("partita_iva")?.textContent || "";
 
           record.data_firma_contratto = xmlDoc.querySelector("data_firma_contratto")?.textContent ||
-                                       xmlDoc.querySelector("DataFirmaContratto")?.textContent ||
-                                       xmlDoc.querySelector("data_firma")?.textContent ||
-                                       new Date().toISOString().split('T')[0];
+            xmlDoc.querySelector("DataFirmaContratto")?.textContent ||
+            xmlDoc.querySelector("data_firma")?.textContent ||
+            new Date().toISOString().split('T')[0];
 
           record.codice_pod = xmlDoc.querySelector("codice_pod")?.textContent ||
-                             xmlDoc.querySelector("CodicePOD")?.textContent ||
-                             xmlDoc.querySelector("codice_pod")?.textContent || "";
+            xmlDoc.querySelector("CodicePOD")?.textContent ||
+            xmlDoc.querySelector("codice_pod")?.textContent || "";
 
           record.codice_pdr = xmlDoc.querySelector("codice_pdr")?.textContent ||
-                             xmlDoc.querySelector("CodicePDR")?.textContent ||
-                             xmlDoc.querySelector("codice_pdr")?.textContent || "";
+            xmlDoc.querySelector("CodicePDR")?.textContent ||
+            xmlDoc.querySelector("codice_pdr")?.textContent || "";
 
           record.contract_account = xmlDoc.querySelector("contract_account")?.textContent ||
-                                   xmlDoc.querySelector("ContractAccount")?.textContent ||
-                                   xmlDoc.querySelector("contract_account")?.textContent || "";
+            xmlDoc.querySelector("ContractAccount")?.textContent ||
+            xmlDoc.querySelector("contract_account")?.textContent || "";
 
           record.pde_external_id = xmlDoc.querySelector("pde_external_id")?.textContent ||
-                                  xmlDoc.querySelector("PdeExternalId")?.textContent ||
-                                  xmlDoc.querySelector("pde_external_id")?.textContent || "";
+            xmlDoc.querySelector("PdeExternalId")?.textContent ||
+            xmlDoc.querySelector("pde_external_id")?.textContent || "";
 
           record.commodity = xmlDoc.querySelector("commodity")?.textContent ||
-                            xmlDoc.querySelector("Commodity")?.textContent ||
-                            xmlDoc.querySelector("commodity")?.textContent ||
-                            "Energia Elettrica";
+            xmlDoc.querySelector("Commodity")?.textContent ||
+            xmlDoc.querySelector("commodity")?.textContent ||
+            "Energia Elettrica";
 
           record.cliente_codice_identificativo_univoco = xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent ||
-                                                        xmlDoc.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
-                                                        xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent || "";
+            xmlDoc.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
+            xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent || "";
 
           record.cliente_record_type_testuale = xmlDoc.querySelector("cliente_record_type_testuale")?.textContent ||
-                                               xmlDoc.querySelector("RecordTypeTestuale")?.textContent ||
-                                               xmlDoc.querySelector("cliente_record_type_testuale")?.textContent || "Retail";
+            xmlDoc.querySelector("RecordTypeTestuale")?.textContent ||
+            xmlDoc.querySelector("cliente_record_type_testuale")?.textContent || "Retail";
 
           record.opportunita_tipo_record = xmlDoc.querySelector("opportunita_tipo_record")?.textContent ||
-                                          xmlDoc.querySelector("TipoRecordOpportunita")?.textContent ||
-                                          xmlDoc.querySelector("opportunita_tipo_record")?.textContent || "Switch";
+            xmlDoc.querySelector("TipoRecordOpportunita")?.textContent ||
+            xmlDoc.querySelector("opportunita_tipo_record")?.textContent || "Switch";
 
           record.opportunita_id = xmlDoc.querySelector("opportunita_id")?.textContent ||
-                                 xmlDoc.querySelector("OpportunitaID")?.textContent ||
-                                 xmlDoc.querySelector("opportunita_id")?.textContent || "";
+            xmlDoc.querySelector("OpportunitaID")?.textContent ||
+            xmlDoc.querySelector("opportunita_id")?.textContent || "";
 
           record.opportunita_nome = xmlDoc.querySelector("opportunita_nome")?.textContent ||
-                                   xmlDoc.querySelector("OpportunitaNome")?.textContent ||
-                                   xmlDoc.querySelector("opportunita_nome")?.textContent || "Opportunità da XML";
+            xmlDoc.querySelector("OpportunitaNome")?.textContent ||
+            xmlDoc.querySelector("opportunita_nome")?.textContent || "Opportunità da XML";
 
           record.opportunita_commodity = xmlDoc.querySelector("opportunita_commodity")?.textContent ||
-                                        xmlDoc.querySelector("OpportunitaCommodity")?.textContent ||
-                                        xmlDoc.querySelector("opportunita_commodity")?.textContent || "Power";
+            xmlDoc.querySelector("OpportunitaCommodity")?.textContent ||
+            xmlDoc.querySelector("opportunita_commodity")?.textContent || "Power";
 
           record.codice_prodotto_ee = xmlDoc.querySelector("codice_prodotto_ee")?.textContent ||
-                                     xmlDoc.querySelector("CodiceProdottoEE")?.textContent ||
-                                     xmlDoc.querySelector("codice_prodotto_ee")?.textContent || "";
+            xmlDoc.querySelector("CodiceProdottoEE")?.textContent ||
+            xmlDoc.querySelector("codice_prodotto_ee")?.textContent || "";
 
           record.codice_prodotto_gas = xmlDoc.querySelector("codice_prodotto_gas")?.textContent ||
-                                      xmlDoc.querySelector("CodiceProdottoGAS")?.textContent ||
-                                      xmlDoc.querySelector("codice_prodotto_gas")?.textContent || "";
+            xmlDoc.querySelector("CodiceProdottoGAS")?.textContent ||
+            xmlDoc.querySelector("codice_prodotto_gas")?.textContent || "";
 
           record.stato = xmlDoc.querySelector("stato")?.textContent ||
-                        xmlDoc.querySelector("Stato")?.textContent ||
-                        xmlDoc.querySelector("stato")?.textContent || "Attivo";
+            xmlDoc.querySelector("Stato")?.textContent ||
+            xmlDoc.querySelector("stato")?.textContent || "Attivo";
 
           record.data_certificazione = xmlDoc.querySelector("data_certificazione")?.textContent ||
-                                      xmlDoc.querySelector("DataCertificazione")?.textContent ||
-                                      xmlDoc.querySelector("data_certificazione")?.textContent ||
-                                      new Date().toISOString().split('T')[0];
+            xmlDoc.querySelector("DataCertificazione")?.textContent ||
+            xmlDoc.querySelector("data_certificazione")?.textContent ||
+            new Date().toISOString().split('T')[0];
 
           // Generate ID
           record.id = `POS-${Math.floor(2000 + Math.random() * 9000)}`;
@@ -1766,9 +1818,9 @@ document.addEventListener("click", () => toggleRepoPanel(false));
 
           // Check if we have a valid external ID
           const hasValidExternalId = record.pde_external_id &&
-                                   record.pde_external_id.trim() !== "" &&
-                                   record.pde_external_id.trim() !== "null" &&
-                                   record.pde_external_id.trim() !== "undefined";
+            record.pde_external_id.trim() !== "" &&
+            record.pde_external_id.trim() !== "null" &&
+            record.pde_external_id.trim() !== "undefined";
 
           if (hasValidExternalId) {
             // Check if a document with the same PD external ID already exists in consultation
@@ -1845,7 +1897,7 @@ document.addEventListener("click", () => toggleRepoPanel(false));
     };
     fileInput.click();
   };
-  
+
   document.getElementById("btnAutoMatch").onclick = () => {
     const count = autoMatchAll();
     save();
@@ -1853,7 +1905,7 @@ document.addEventListener("click", () => toggleRepoPanel(false));
     if (count > 0) toast(`Match automatico: ${count} contratti abbinati`);
     else toast("Nessuna corrispondenza automatica (confidenza 100%) trovata nello staging");
   };
-  
+
   document.getElementById("closeDrawer").onclick = closeDrawer;
   document.getElementById("resetDemo").onclick = () => {
     localStorage.removeItem("dockbridgePremiumState");
@@ -1871,17 +1923,17 @@ document.addEventListener("click", () => toggleRepoPanel(false));
   document.getElementById("btnStickyAutoMatch").onclick = autoMatchSelectedPair;
 
   ["docSearch", "docCommodity", "docSearchField", "stagingSearch"].forEach((idv) => {
-  document.getElementById(idv)?.addEventListener("input", render);
-});
+    document.getElementById(idv)?.addEventListener("input", render);
+  });
 
-// Aggiorna il placeholder della barra di ricerca in base al campo scelto nel menù a tendina
-document.getElementById("docSearchField")?.addEventListener("change", (e) => {
-  const docSearchInput = document.getElementById("docSearch");
-  if (docSearchInput) {
-    docSearchInput.placeholder = searchFieldPlaceholders[e.target.value];
-  }
-});
-  
+  // Aggiorna il placeholder della barra di ricerca in base al campo scelto nel menù a tendina
+  document.getElementById("docSearchField")?.addEventListener("change", (e) => {
+    const docSearchInput = document.getElementById("docSearch");
+    if (docSearchInput) {
+      docSearchInput.placeholder = searchFieldPlaceholders[e.target.value];
+    }
+  });
+
   function syncManualCommodityFields(isGas, clearValues) {
     const podPdrInput = document.getElementById("f_codice_pod_pdr");
     const podPdrLabel = document.getElementById("f_codice_pod_pdr_label");
@@ -1914,7 +1966,7 @@ document.getElementById("docSearchField")?.addEventListener("change", (e) => {
       toast("Record inserito in staging");
     }
   };
-  
+
   document.getElementById("fillDemo").onclick = () => {
     const r = sampleRecord();
     const isGas = r.commodity === "Gas naturale";
@@ -1925,6 +1977,51 @@ document.getElementById("docSearchField")?.addEventListener("change", (e) => {
       if (el) el.value = r[k] || "";
     });
   };
-  
+
   render();
 });
+
+const dot = document.getElementById("notificationDot");
+const btn = document.getElementById("stagingBtn");
+
+// chiave per salvare stato
+const STORAGE_KEY = "stagingLastSeen";
+const UPDATE_KEY = "stagingLastUpdate";
+
+// 1. inizializza aggiornamento (simulato)
+if (!localStorage.getItem(UPDATE_KEY)) {
+  localStorage.setItem(UPDATE_KEY, Date.now());
+}
+
+// 2. controlla se mostrare il pallino
+function checkNotification() {
+  const lastSeen = localStorage.getItem(STORAGE_KEY);
+  const lastUpdate = localStorage.getItem(UPDATE_KEY);
+
+  if (!lastSeen || lastUpdate > lastSeen) {
+    dot.classList.remove("hidden");
+  } else {
+    dot.classList.add("hidden");
+  }
+}
+
+// 3. quando l'utente entra nello staging
+btn.addEventListener("click", () => {
+  localStorage.setItem(STORAGE_KEY, Date.now());
+  dot.classList.add("hidden");
+
+  // qui vai alla pagina staging
+  console.log("entra in staging");
+});
+
+// 4. simula aggiornamento (per demo)
+function simulateUpdate() {
+  localStorage.setItem(UPDATE_KEY, Date.now());
+  checkNotification();
+}
+
+// inizializza
+checkNotification();
+
+// opzionale: bottone demo o trigger manuale
+window.simulateUpdate = simulateUpdate;
