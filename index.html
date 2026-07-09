@@ -35,6 +35,14 @@
         <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
           <small>Repository attive</small>
           <div id="repoStatusList">
+      <main class="main">
+        <header class="topbar">
+
+          <div class="top-actions">
+            <button id="btnUno">☁ Carica Uno Energy CSV</button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+            <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
+            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
           </div>
         </div>
 
@@ -98,6 +106,15 @@
           <div class="card">
             <div class="card-head">
               <h3>Tipologia Commodity (Contratti Abbinati)</h3>
+          <div class="card sticky-match" id="stickyMatch" style="display: none">
+            <div id="stickyMatchText"></div>
+            <div class="top-actions">
+              <button class="ghost" id="btnManualMatch">
+                🔎 Confronta Dati
+              </button>
+              <button class="orange" id="btnStickyAutoMatch">
+                🤖 Match Automatico
+              </button>
             </div>
             <div id="commodityChart" class="chart-bars"></div>
           </div>
@@ -393,6 +410,19 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
             Documento digitalizzato e verificato con successo rispetto ai
             tracciati core.
           </p>
+    <div id="modalCompare" class="modal">
+      <div class="modal-panel">
+        <h3 id="compareTitle">Confronto Tracciati</h3>
+        <div
+          class="diff-grid diff-grid-scroll"
+          id="compareDiffGrid"
+        ></div>
+        <div id="reconFooter" class="recon-footer" style="display: none">
+          <div id="reconStatus" class="recon-status pending"></div>
+          <div class="recon-footer-actions">
+            <button class="ghost" id="reconAnnulla" type="button">↺ Annulla tutto</button>
+            <button class="orange" id="reconAccoppia" type="button" disabled>✓ Accoppia record</button>
+          </div>
         </div>
       </div>
     </div>
