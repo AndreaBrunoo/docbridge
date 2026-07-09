@@ -45,6 +45,15 @@ const CSV_HEADER_MAP = {
   "data certificazione": "data_certificazione",
 };
 
+// Password demo archiviate in chiaro: è una demo frontend-only, NON un
+// sistema di autenticazione reale. In produzione le password andrebbero
+// hashate lato server (es. bcrypt) e mai inviate/transitate in chiaro.
+const DEMO_USERS = [
+  { id: "u_vis", username: "visitatore", role: "Visualizzatore", password: "demo", createdAt: "2026-01-15 09:00" },
+  { id: "u_tec", username: "tecnico",    role: "Tecnico",        password: "demo", createdAt: "2026-01-15 09:00" },
+  { id: "u_dpo", username: "dpo",        role: "DPO",            password: "demo", createdAt: "2026-01-15 09:00" },
+];
+
 const state = normalizeState(loadState());
 let selectedUno = null,
   selectedPostel = null;
@@ -66,6 +75,10 @@ function defaultState() {
     lastPostelId: null,
     lastPair: null,
     dark: false,
+    // --- Sistema di ruoli (V2) ---
+    users: DEMO_USERS.map((u) => ({ ...u })),
+    currentUser: null,   // null = login non effettuato
+    auditUnlocked: false, // DPO ha rivelato almeno una volta i nomi utente nei log (solo UI, non persistito davvero: viene resettato a ogni avvio per evitare che l'utente DPO precedente lasci la sessione 'sbloccata')
   };
 }
 
@@ -98,12 +111,141 @@ function normalizeState(loaded) {
     },
   };
   merged.dark = typeof loaded.dark === "boolean" ? loaded.dark : false;
+  // --- Ruoli: garantire presenza di users / currentUser / auditUnlocked ---
+  // Per chi aveva già uno stato salvato senza questi campi, inizializziamo
+  // i 3 utenti demo e forziamo il logout: la sessione precedente non aveva
+  // un'identità associata, quindi richiediamo un nuovo login.
+  merged.users = Array.isArray(loaded.users) && loaded.users.length > 0
+    ? loaded.users
+    : DEMO_USERS.map((u) => ({ ...u }));
+  merged.currentUser = loaded.currentUser && typeof loaded.currentUser === "object"
+    ? loaded.currentUser
+    : null;
+  merged.auditUnlocked = false; // mai persistito: sempre off al riavvio
   return merged;
+}
+
+// ============================================================
+// Ruoli & Permessi
+// ============================================================
+// Matrice delle azioni consentite per ciascun ruolo. Aggiungere una nuova
+// azione significa elencarla qui sotto; il resto del codice usa solo
+// `can(...)` e non deve fare confronti diretti con `state.currentUser.role`.
+const ROLE_PERMISSIONS = {
+  Visualizzatore: new Set([
+    "view:dashboard",
+    "view:consultazione",
+  ]),
+  Tecnico: new Set([
+    "view:dashboard",
+    "view:consultazione",
+    "view:staging",
+    "view:manuale",
+    "action:carica-csv",
+    "action:carica-xml",
+    "action:auto-match",
+    "action:manual-match",
+    "action:elimina-record",
+  ]),
+  DPO: new Set([
+    "view:dashboard",
+    "view:consultazione",
+    "view:staging",
+    "view:manuale",
+    "view:utenti",
+    "action:carica-csv",
+    "action:carica-xml",
+    "action:auto-match",
+    "action:manual-match",
+    "action:elimina-record",
+    "action:cambia-ruolo",
+    "action:audit-rivela", // può svelare gli userId nei log
+  ]),
+};
+
+function currentRole() {
+  return state.currentUser?.role || null;
+}
+
+function can(action) {
+  const role = currentRole();
+  if (!role) return false;
+  return ROLE_PERMISSIONS[role]?.has(action) || false;
+}
+
+function findUserById(id) {
+  return state.users.find((u) => u.id === id) || null;
+}
+
+function findUserByUsername(username) {
+  return state.users.find((u) => u.username === username) || null;
+}
+
+function login(userId, password) {
+  const user = findUserById(userId);
+  if (!user) return { ok: false, error: "Utente non trovato" };
+  if (user.password !== password) return { ok: false, error: "Password errata" };
+  state.currentUser = { id: user.id, username: user.username, role: user.role };
+  state.auditUnlocked = false;
+  _revealedEventIdx = new Set();
+  logEvent(state, `Login effettuato: ${user.username} (${user.role})`, user.id);
+  save();
+  return { ok: true, user: state.currentUser };
+}
+
+function logout() {
+  if (state.currentUser) {
+    logEvent(state, `Logout effettuato: ${state.currentUser.username}`, state.currentUser.id);
+  }
+  state.currentUser = null;
+  state.auditUnlocked = false;
+  _revealedEventIdx = new Set();
+  save();
+}
+
+// Maschera un userId in un codice corto, STABILE e NON reversibile, da
+// mostrare di default nel Log Eventi (privacy by default). I 3 caratteri
+// finali sono derivati da un hash deterministico dell'id, così lo stesso
+// utente produce sempre lo stesso codice e il DPO può correlare gli eventi.
+function maskUser(userId) {
+  if (!userId) return "sys";
+  if (userId === "system") return "sys";
+  // djb2-like: leggero, deterministico, sufficiente per mascherare senza
+  // esporre l'id reale. Non è un hash crittografico.
+  let h = 5381;
+  for (let i = 0; i < userId.length; i++) {
+    h = (h * 33) ^ userId.charCodeAt(i);
+  }
+  // Converti in unsigned e poi in base36, prendi gli ultimi 3 caratteri
+  const code = (h >>> 0).toString(36).padStart(3, "0").slice(-3);
+  return `usr_***${code}`;
+}
+
+function revealUser(userId) {
+  if (!userId || userId === "system") return "system";
+  const u = findUserById(userId);
+  return u ? u.username : userId;
+}
+
+function changeUserRole(userId, newRole) {
+  if (!can("action:cambia-ruolo")) return false;
+  if (!["Visualizzatore", "Tecnico", "DPO"].includes(newRole)) return false;
+  const u = findUserById(userId);
+  if (!u) return false;
+  const oldRole = u.role;
+  if (oldRole === newRole) return true;
+  u.role = newRole;
+  // Aggiorna anche eventuale currentUser se stiamo modificando l'utente loggato
+  if (state.currentUser?.id === u.id) {
+    state.currentUser.role = newRole;
+  }
+  logEvent(state, `Cambio ruolo: ${u.username} ${oldRole} → ${newRole}`, state.currentUser?.id);
+  save();
+  return true;
 }
 
 function save() {
   try {
-    updateNotificationDot();
     localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
     return true;
   } catch (err) {
@@ -111,8 +253,15 @@ function save() {
     // cronologia più recente e riproviamo, invece di far fallire l'azione
     // dell'utente (import CSV, match, inserimento manuale, ecc.).
     console.warn("Salvataggio fallito, provo a liberare spazio:", err);
+    // Preserva sempre la sessione corrente: un fallimento di quota durante
+    // un login/cambio ruolo non deve mai far "regredire" o perdere
+    // state.currentUser al giro di salvataggio successivo.
+    const savedUser = state.currentUser;
+    const savedUsers = state.users;
     state.events = state.events.slice(0, 15);
     if (state.matched.length > 150) state.matched = state.matched.slice(0, 150);
+    state.currentUser = savedUser;
+    state.users = savedUsers;
     try {
       localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
       toast("Spazio archiviazione quasi esaurito: rimossa la cronologia più vecchia");
@@ -132,8 +281,11 @@ function loadState() {
   }
 }
 
-function logEvent(s, txt) {
-  s.events.unshift({ time: new Date().toLocaleTimeString(), text: txt });
+function logEvent(s, txt, userId) {
+  // userId: id dell'utente che ha generato l'evento. Default = utente
+  // attualmente loggato. "system" per eventi tecnici (inizializzazione, ecc.).
+  const uid = userId !== undefined ? userId : (s.currentUser?.id || "system");
+  s.events.unshift({ time: new Date().toLocaleTimeString(), text: txt, userId: uid });
   if (s.events.length > 40) s.events.pop();
 }
 
@@ -213,6 +365,10 @@ function finalizeMatch(u, p, type) {
     tipo_match: type,
     match_score: conf.score,
     matched_at: new Date().toLocaleString("it-IT"),
+    // Tracciamento GDPR: chi ha effettuato il match. "system" per i match
+    // generati automaticamente dal flusso (es. ingest Postel con ID valido)
+    // quando l'utente non ha eseguito un'azione esplicita.
+    matched_by: state.currentUser?.id || "system",
   };
 }
 
@@ -321,11 +477,144 @@ function render() {
 }
 
 function renderInner() {
+  // Se non c'è un utente loggato non renderizzare nulla (l'overlay di login
+  // è gestito separatamente in showLoginOverlay/hideLoginOverlay).
+  if (!state.currentUser) return;
   const activeView = document.querySelector(".view.active")?.id;
+  applyRoleGating();
   if (activeView === "dashboard") renderDashboard();
   if (activeView === "consultazione") renderConsultazione();
   if (activeView === "staging") renderStaging();
+  if (activeView === "users") renderUsersPanel();
   renderEvents();
+  renderUserBadge();
+}
+
+// Mostra/nasconde elementi della sidebar, header e altri bottoni in base
+// al ruolo corrente. Gli elementi restano nel DOM (perché la loro presenza
+// può servire a debug), ma sono nascosti via display:none quando il ruolo
+// non ha il permesso corrispondente. Il mapping si appoggia agli attributi
+// `data-requires` presenti nell'HTML.
+function applyRoleGating() {
+  const map = {
+    "btnUno": "action:carica-csv",
+    "btnPostel": "action:carica-xml",
+    "btnAutoMatch": "action:auto-match",
+    "nav-staging": "view:staging",
+    "nav-manuale": "view:manuale",
+    "nav-users": "view:utenti",
+  };
+  Object.entries(map).forEach(([id, perm]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.display = can(perm) ? "" : "none";
+  });
+}
+
+// Aggiorna il badge utente nella topbar (username + pill ruolo). Se nessun
+// utente è loggato, il contenitore è nascosto.
+function renderUserBadge() {
+  const badge = document.getElementById("userBadge");
+  if (!badge) return;
+  if (!state.currentUser) {
+    badge.style.display = "none";
+    return;
+  }
+  const u = state.currentUser;
+  badge.style.display = "";
+  badge.innerHTML = `
+    <div class="user-info">
+      <span class="user-icon">👤</span>
+      <div class="user-meta">
+        <b class="user-name">${escapeHtml(u.username)}</b>
+        <span class="role-pill role-${u.role.toLowerCase()}">${escapeHtml(u.role)}</span>
+      </div>
+    </div>
+    <button id="logoutBtn" class="ghost" title="Esci dalla sessione">⎋ Esci</button>
+  `;
+  const lo = document.getElementById("logoutBtn");
+  if (lo) lo.onclick = handleLogout;
+}
+
+// Gestisce il click sul bottone Logout. Salva, azzera currentUser, mostra
+// l'overlay di login e ripristina la vista Dashboard.
+function handleLogout() {
+  logout();
+  // Torna alla vista Dashboard prima di mostrare il login, così l'utente
+  // DPO che si disconnette non lascia la "Gestione utenti" come view attiva
+  // per il prossimo login (Visualizzatore non la vedrebbe).
+  document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
+  document.getElementById("dashboard")?.classList.add("active");
+  document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
+  document.querySelector('.nav-item[data-view="dashboard"]')?.classList.add("active");
+  showLoginOverlay();
+}
+
+// ============================================================
+// Login overlay
+// ============================================================
+function showLoginOverlay() {
+  const overlay = document.getElementById("loginOverlay");
+  if (!overlay) return;
+  // Popola la lista utenti disponibili
+  const list = document.getElementById("loginUserList");
+  if (list) {
+    list.innerHTML = state.users.map((u) => `
+      <button type="button" class="login-user" data-user-id="${u.id}">
+        <span class="login-user-avatar">${u.username.charAt(0).toUpperCase()}</span>
+        <span class="login-user-meta">
+          <b>${escapeHtml(u.username)}</b>
+          <small>${escapeHtml(u.role)}</small>
+        </span>
+      </button>
+    `).join("");
+    list.querySelectorAll(".login-user").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        list.querySelectorAll(".login-user").forEach((b) => b.classList.remove("selected"));
+        btn.classList.add("selected");
+        const pwd = document.getElementById("loginPassword");
+        if (pwd) {
+          pwd.value = "demo";
+          pwd.focus();
+          pwd.select();
+        }
+      });
+    });
+  }
+  const pwd = document.getElementById("loginPassword");
+  if (pwd) pwd.value = "demo";
+  const err = document.getElementById("loginError");
+  if (err) err.textContent = "";
+  overlay.classList.add("open");
+  document.body.classList.add("login-open");
+}
+
+function hideLoginOverlay() {
+  const overlay = document.getElementById("loginOverlay");
+  if (!overlay) return;
+  overlay.classList.remove("open");
+  document.body.classList.remove("login-open");
+}
+
+function handleLoginSubmit(e) {
+  if (e) e.preventDefault();
+  const selected = document.querySelector(".login-user.selected");
+  const pwdInput = document.getElementById("loginPassword");
+  const err = document.getElementById("loginError");
+  if (!selected) {
+    if (err) err.textContent = "Seleziona un utente";
+    return;
+  }
+  const userId = selected.getAttribute("data-user-id");
+  const password = pwdInput?.value || "";
+  const result = login(userId, password);
+  if (!result.ok) {
+    if (err) err.textContent = result.error;
+    return;
+  }
+  hideLoginOverlay();
+  render();
+  toast(`Benvenuto, ${result.user.username} (${result.user.role})`);
 }
 
 function renderDashboard() {
@@ -421,12 +710,16 @@ function matchColor(score) {
 }
 
 function deleteMatched(id) {
+  if (!can("action:elimina-record")) {
+    toast("Permesso negato: il tuo ruolo non può eliminare record");
+    return;
+  }
   // Trova il record prima di eliminarlo per capire se aveva generato anomalie
   const recordToDelete = state.matched.find(x => x.id === id);
-  
+
   state.matched = state.matched.filter(x => x.id !== id);
   logEvent(state, `Eliminato record riconciliato: ${id}`);
-  
+
   // Se non ci sono più record abbinati di tipo manuale, azzeriamo il contatore anomalie visivo
   const hasManualLeft = state.matched.some(x => x.tipo_match === "Manuale");
   if (!hasManualLeft) {
@@ -439,6 +732,10 @@ function deleteMatched(id) {
 }
 
 function deleteStaging(id, type) {
+  if (!can("action:elimina-record")) {
+    toast("Permesso negato: il tuo ruolo non può eliminare record");
+    return;
+  }
   if (type === 'uno') {
     state.queuesigned = state.queuesigned.filter(x => x.id !== id);
     if (selectedUno?.id === id) selectedUno = null;
@@ -494,14 +791,17 @@ function renderConsultazione() {
     
     const tr = document.createElement("tr");
     const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
-      
+    const deleteBtn = can("action:elimina-record")
+      ? '<button class="btn-delete-row" title="Elimina record">🗑️</button>'
+      : "";
+
     tr.innerHTML = `
       <td><b>${d.id}</b></td>
       <td>${d.cliente_nome_cognome}</td>
       <td>${d.commodity || "Energia Elettrica"}</td>
       <td><time>${d.data_firma_contratto || 'N/D'}</time></td>
       <td>${badgeText}</td>
-      <td><button class="btn-delete-row" title="Elimina record">🗑️</button></td>
+      <td>${deleteBtn}</td>
     `;
     
     tr.onclick = (e) => {
@@ -517,10 +817,6 @@ function renderConsultazione() {
   
   if (count === 0)
     b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>';
-}
-// Area Staging: gestione delle code di contratti Uno Energy e Postel, con selezione e confronto manuale.
-function getStagingCount() {
-  return state.queuesigned.length + state.queuearchived.length;
 }
 
 function renderStaging() {
@@ -581,20 +877,6 @@ function renderStaging() {
     bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
     bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
-  dot.classList.add("hidden");
-}
-
-function updateNotificationDot() {
-  const dot = document.getElementById("notificationDot");
-
-  const current = getStagingCount();
-  const lastSeen = parseInt(localStorage.getItem("stagingLastSeenCount")) || 0;
-
-  if (current > lastSeen) {
-    dot.classList.remove("hidden");
-  } else {
-    dot.classList.add("hidden");
-  }
 }
 
 function checkStickyMatch() {
@@ -657,12 +939,36 @@ function manualMatch(u, p) {
   toast("Record accoppiati correttamente");
 }
 
+// Insieme (in memoria, non persistito) degli indici di evento che il DPO
+// ha momentaneamente "svelato" con il tasto occhio in questa sessione di
+// rendering. Si resetta ad ogni logout/login (privacy by default).
+let _revealedEventIdx = new Set();
+
 function renderEvents() {
   const el = document.getElementById("timelineEvents");
   if (!el) return;
+  const isDpo = can("action:audit-rivela");
   el.innerHTML = state.events
-    .map((e) => `<div class="event"><time>${e.time}</time><div>${e.text}</div></div>`)
+    .map((e, i) => {
+      const revealed = isDpo && _revealedEventIdx.has(i);
+      const label = revealed ? revealUser(e.userId) : maskUser(e.userId);
+      const userChip = `<span class="event-user${revealed ? " revealed" : ""}">${escapeHtml(label)}</span>`;
+      const eye = isDpo
+        ? `<button class="event-eye" data-idx="${i}" title="${revealed ? "Nascondi identità" : "Rivela identità (DPO)"}">${revealed ? "🙈" : "👁"}</button>`
+        : "";
+      return `<div class="event"><time>${e.time}</time><div>${userChip}${eye}${escapeHtml(e.text)}</div></div>`;
+    })
     .join("");
+  if (isDpo) {
+    el.querySelectorAll(".event-eye").forEach((btn) => {
+      btn.onclick = () => {
+        const idx = Number(btn.getAttribute("data-idx"));
+        if (_revealedEventIdx.has(idx)) _revealedEventIdx.delete(idx);
+        else _revealedEventIdx.add(idx);
+        renderEvents();
+      };
+    });
+  }
 }
 
 function openDrawer(d) {
@@ -778,6 +1084,47 @@ function renderReconFooter() {
     status.className = "recon-status pending";
     btnAccoppia.disabled = true;
   }
+}
+
+// Pannello "Gestione utenti", visibile solo al DPO. Lista utenti demo con
+// possibilità di cambiare ruolo tramite una select inline.
+function renderUsersPanel() {
+  const b = document.getElementById("usersTableBody");
+  if (!b) return;
+  if (!can("view:utenti")) {
+    b.innerHTML = '<tr><td colspan="3" class="empty">Accesso riservato al ruolo DPO.</td></tr>';
+    return;
+  }
+  const roles = ["Visualizzatore", "Tecnico", "DPO"];
+  b.innerHTML = state.users
+    .map((u) => {
+      const options = roles
+        .map((r) => `<option value="${r}"${r === u.role ? " selected" : ""}>${r}</option>`)
+        .join("");
+      const isSelf = state.currentUser?.id === u.id;
+      return `
+        <tr>
+          <td><b>${escapeHtml(u.username)}</b>${isSelf ? ' <small class="pill">tu</small>' : ""}</td>
+          <td>
+            <select class="role-select" data-user-id="${u.id}">${options}</select>
+          </td>
+          <td><small>${escapeHtml(u.createdAt || "—")}</small></td>
+        </tr>
+      `;
+    })
+    .join("");
+  b.querySelectorAll(".role-select").forEach((sel) => {
+    sel.onchange = () => {
+      const userId = sel.getAttribute("data-user-id");
+      const ok = changeUserRole(userId, sel.value);
+      if (ok) {
+        toast(`Ruolo aggiornato per ${findUserById(userId)?.username || userId}`);
+        render();
+      } else {
+        toast("Impossibile aggiornare il ruolo");
+      }
+    };
+  });
 }
 
 function escapeHtml(v) {
@@ -1081,13 +1428,30 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   
   initData();
-  
+
+  // --- Ruoli: mostra login se non c'è una sessione attiva ---
+  if (!state.currentUser) {
+    showLoginOverlay();
+  } else {
+    hideLoginOverlay();
+  }
+  document.getElementById("loginForm")?.addEventListener("submit", handleLoginSubmit);
+  document.getElementById("loginSubmitBtn")?.addEventListener("click", handleLoginSubmit);
+
   document.querySelectorAll(".nav-item").forEach((btn) => {
     btn.onclick = () => {
+      // Difesa in profondità: non permettere di entrare in una vista per cui
+      // il ruolo corrente non ha permesso, anche se il bottone fosse forzato
+      // visibile via DevTools.
+      const target = btn.getAttribute("data-view");
+      const viewPerm = { staging: "view:staging", manuale: "view:manuale", users: "view:utenti" }[target];
+      if (viewPerm && !can(viewPerm)) {
+        toast("Permesso negato: il tuo ruolo non può accedere a questa sezione");
+        return;
+      }
       document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       document.querySelectorAll(".view").forEach((v) => v.classList.remove("active"));
-      const target = btn.getAttribute("data-view");
       document.getElementById(target)?.classList.add("active");
       render();
     };
@@ -1369,50 +1733,3 @@ document.getElementById("docSearchField")?.addEventListener("change", (e) => {
   
   render();
 });
-
-//logica del pallino rosso delle notifiche
-
-const dot = document.getElementById("notificationDot");
-const btn = document.getElementById("stagingBtn");
-
-// chiave per salvare stato
-const STORAGE_KEY = "stagingLastSeen";
-const UPDATE_KEY = "stagingLastUpdate";
-
-// 1. inizializza aggiornamento (simulato)
-if (!localStorage.getItem(UPDATE_KEY)) {
-  localStorage.setItem(UPDATE_KEY, Date.now());
-}
-
-// 2. controlla se mostrare il pallino
-function checkNotification() {
-  const lastSeen = localStorage.getItem(STORAGE_KEY);
-  const lastUpdate = localStorage.getItem(UPDATE_KEY);
-
-  if (!lastSeen || lastUpdate > lastSeen) {
-    dot.classList.remove("hidden");
-  } else {
-    dot.classList.add("hidden");
-  }
-}
-
-// 3. quando l'utente entra nello staging
-btn.addEventListener("click", () => {
-  localStorage.setItem(STORAGE_KEY, Date.now());
-  dot.classList.add("hidden");
-
-  // qui vai alla pagina staging
-  console.log("entra in staging");
-});
-
-// 4. simula aggiornamento (per demo)
-function simulateUpdate() {
-  localStorage.setItem(UPDATE_KEY, Date.now());
-  checkNotification();
-}
-
-// inizializza
-checkNotification();
-
-// opzionale: bottone demo o trigger manuale
-window.simulateUpdate = simulateUpdate;

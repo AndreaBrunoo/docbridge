@@ -10,7 +10,7 @@
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark"><img style="width: 100%; height: auto;" src="images/logo.png" alt="DocBridge"></div>
+          <div class="brand-mark">D</div>
           <div>
             <strong>Unoenergy</strong>
           </div>
@@ -22,25 +22,20 @@
           <button class="nav-item" data-view="consultazione">
             ⌕ Consultazione
           </button>
-          <button class="nav-item staging-btn" data-view="staging">
-          ⇄ Area Staging
-          <span id="notificationDot" class="dot hidden"></span>
-        </button>
-
-          <button class="nav-item" data-view="manuale">
+          <button class="nav-item" id="nav-staging" data-view="staging">⇄ Area Staging</button>
+          <button class="nav-item" id="nav-manuale" data-view="manuale">
             ＋ Caricamento manuale
           </button>
+          <button class="nav-item" data-view="api">⌘ API / CLI</button>
+          <button class="nav-item" id="nav-users" data-view="users">🛡 Gestione utenti</button>
         </nav>
         <div class="side-card">
-          <small>Repository attive</small>
+          <small>Flussi attivi</small>
           <div class="flow-status">
             <span class="dot green"></span> Uno Energy
           </div>
           <div class="flow-status">
-            <span class="dot green"></span> Postel1
-          </div>
-          <div class="flow-status">
-            <span class="dot red"></span> Postel2
+            <span class="dot green"></span> Postel simulato
           </div>
         </div>
         <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
@@ -59,6 +54,7 @@
             <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
             <button id="btnAutoMatch" class="success">✓ Match automatico</button>
           </div>
+          <div id="userBadge" class="user-badge" style="display:none"></div>
         </header>
 
 <section id="dashboard" class="view active">
@@ -334,7 +330,48 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre
             </div>
           </div>
         </section>
+
+        <section id="users" class="view">
+          <div class="card">
+            <div class="card-head">
+              <h3>Gestione utenti</h3>
+              <span class="pill">Solo DPO</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Ruolo</th>
+                    <th>Creato il</th>
+                  </tr>
+                </thead>
+                <tbody id="usersTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </main>
+    </div>
+
+    <div id="loginOverlay" class="login-overlay">
+      <form id="loginForm" class="login-panel" onsubmit="return false;">
+        <div class="login-brand">
+          <div class="brand-mark">D</div>
+          <div>
+            <strong>DocBridge</strong>
+            <span>Accesso demo</span>
+          </div>
+        </div>
+        <p class="login-hint">Seleziona un utente demo per accedere.</p>
+        <div id="loginUserList" class="login-user-list"></div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" name="password" autocomplete="off" />
+        </div>
+        <div id="loginError" class="login-error"></div>
+        <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
+      </form>
     </div>
 
     <div id="drawer" class="drawer">
