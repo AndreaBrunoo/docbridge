@@ -480,6 +480,19 @@ select:focus {
   font-weight: 600;
   display: inline-block;
 }
+.repo-origin-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--panel-nested);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  width: fit-content;
+}
 .badge.green {
   background: #dcfce7;
   color: #15803d;
