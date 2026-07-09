@@ -34,8 +34,18 @@
       <div class="repo-card-wrap">
         <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
           <small>Repository attive</small>
-          <div id="repoStatusList"></div>
+          <div id="repoStatusList">
+      <main class="main">
+        <header class="topbar">
+
+          <div class="top-actions">
+            <button id="btnUno">☁ Carica Uno Energy CSV</button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+            <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
+            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
+          </div>
         </div>
+
         <div class="repo-toggle-panel" id="repoTogglePanel">
           <small>Gestisci repository</small>
           <div id="repoToggleList"></div>
@@ -196,7 +206,7 @@
             <button class="ghost" id="btnManualMatch">
               🔎 Confronta Dati
             </button>
-            <button class="orange" id="btnStickyAutoMatch">
+            <button class="violet" id="btnStickyAutoMatch">
               🤖 Match Automatico
             </button>
           </div>
