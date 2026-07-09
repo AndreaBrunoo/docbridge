@@ -786,20 +786,175 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   
   document.getElementById("btnPostel").onclick = () => {
-    const lastUno = state.queuesigned[state.queuesigned.length - 1];
-    let p;
-    if (lastUno) {
-      p = makePostelFromUno(lastUno);
-      logEvent(state, `Tracciato ZIP Postel importato in Staging, compatibile con ${lastUno.id}`);
-    } else {
-      p = { ...sampleRecord(), id: `POS-${Math.floor(2000 + Math.random() * 9000)}` };
-      logEvent(state, `Tracciato ZIP Postel generico importato in Staging`);
-    }
-    state.queuearchived.push(p);
-    state.lastPostelId = p.id;
-    save();
-    render();
-    toast(`Record Postel ${p.id} inserito nello Staging`);
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.xml';
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const xmlText = e.target.result;
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+          // Extract data from XML - assuming Postel WS format
+          const record = {};
+
+          // Extract common fields - adjust based on actual XML structure
+          record.cliente_nome_cognome = xmlDoc.querySelector("cliente_nome_cognome")?.textContent ||
+                                       xmlDoc.querySelector("ClienteNomeCognome")?.textContent ||
+                                       xmlDoc.querySelector("nome_cognome")?.textContent ||
+                                       "Cliente da XML";
+
+          record.cliente_codice_fiscale = xmlDoc.querySelector("cliente_codice_fiscale")?.textContent ||
+                                         xmlDoc.querySelector("CodiceFiscale")?.textContent ||
+                                         xmlDoc.querySelector("codice_fiscale")?.textContent || "";
+
+          record.cliente_partita_iva = xmlDoc.querySelector("cliente_partita_iva")?.textContent ||
+                                      xmlDoc.querySelector("PartitaIVA")?.textContent ||
+                                      xmlDoc.querySelector("partita_iva")?.textContent || "";
+
+          record.data_firma_contratto = xmlDoc.querySelector("data_firma_contratto")?.textContent ||
+                                       xmlDoc.querySelector("DataFirmaContratto")?.textContent ||
+                                       xmlDoc.querySelector("data_firma")?.textContent ||
+                                       new Date().toISOString().split('T')[0];
+
+          record.codice_pod = xmlDoc.querySelector("codice_pod")?.textContent ||
+                             xmlDoc.querySelector("CodicePOD")?.textContent ||
+                             xmlDoc.querySelector("codice_pod")?.textContent || "";
+
+          record.codice_pdr = xmlDoc.querySelector("codice_pdr")?.textContent ||
+                             xmlDoc.querySelector("CodicePDR")?.textContent ||
+                             xmlDoc.querySelector("codice_pdr")?.textContent || "";
+
+          record.contract_account = xmlDoc.querySelector("contract_account")?.textContent ||
+                                   xmlDoc.querySelector("ContractAccount")?.textContent ||
+                                   xmlDoc.querySelector("contract_account")?.textContent || "";
+
+          record.pde_external_id = xmlDoc.querySelector("pde_external_id")?.textContent ||
+                                  xmlDoc.querySelector("PdeExternalId")?.textContent ||
+                                  xmlDoc.querySelector("pde_external_id")?.textContent || "";
+
+          record.commodity = xmlDoc.querySelector("commodity")?.textContent ||
+                            xmlDoc.querySelector("Commodity")?.textContent ||
+                            xmlDoc.querySelector("commodity")?.textContent ||
+                            "Energia Elettrica";
+
+          record.cliente_codice_identificativo_univoco = xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent ||
+                                                        xmlDoc.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
+                                                        xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent || "";
+
+          record.cliente_record_type_testuale = xmlDoc.querySelector("cliente_record_type_testuale")?.textContent ||
+                                               xmlDoc.querySelector("RecordTypeTestuale")?.textContent ||
+                                               xmlDoc.querySelector("cliente_record_type_testuale")?.textContent || "Retail";
+
+          record.opportunita_tipo_record = xmlDoc.querySelector("opportunita_tipo_record")?.textContent ||
+                                          xmlDoc.querySelector("TipoRecordOpportunita")?.textContent ||
+                                          xmlDoc.querySelector("opportunita_tipo_record")?.textContent || "Switch";
+
+          record.opportunita_id = xmlDoc.querySelector("opportunita_id")?.textContent ||
+                                 xmlDoc.querySelector("OpportunitaID")?.textContent ||
+                                 xmlDoc.querySelector("opportunita_id")?.textContent || "";
+
+          record.opportunita_nome = xmlDoc.querySelector("opportunita_nome")?.textContent ||
+                                   xmlDoc.querySelector("OpportunitaNome")?.textContent ||
+                                   xmlDoc.querySelector("opportunita_nome")?.textContent || "Opportunità da XML";
+
+          record.opportunita_commodity = xmlDoc.querySelector("opportunita_commodity")?.textContent ||
+                                        xmlDoc.querySelector("OpportunitaCommodity")?.textContent ||
+                                        xmlDoc.querySelector("opportunita_commodity")?.textContent || "Power";
+
+          record.codice_prodotto_ee = xmlDoc.querySelector("codice_prodotto_ee")?.textContent ||
+                                     xmlDoc.querySelector("CodiceProdottoEE")?.textContent ||
+                                     xmlDoc.querySelector("codice_prodotto_ee")?.textContent || "";
+
+          record.codice_prodotto_gas = xmlDoc.querySelector("codice_prodotto_gas")?.textContent ||
+                                      xmlDoc.querySelector("CodiceProdottoGAS")?.textContent ||
+                                      xmlDoc.querySelector("codice_prodotto_gas")?.textContent || "";
+
+          record.stato = xmlDoc.querySelector("stato")?.textContent ||
+                        xmlDoc.querySelector("Stato")?.textContent ||
+                        xmlDoc.querySelector("stato")?.textContent || "Attivo";
+
+          record.data_certificazione = xmlDoc.querySelector("data_certificazione")?.textContent ||
+                                      xmlDoc.querySelector("DataCertificazione")?.textContent ||
+                                      xmlDoc.querySelector("data_certificazione")?.textContent ||
+                                      new Date().toISOString().split('T')[0];
+
+          // Generate ID
+          record.id = `POS-${Math.floor(2000 + Math.random() * 9000)}`;
+
+          // Check if we have a valid external ID
+          const hasValidExternalId = record.pde_external_id &&
+                                   record.pde_external_id.trim() !== "" &&
+                                   record.pde_external_id.trim() !== "null" &&
+                                   record.pde_external_id.trim() !== "undefined";
+
+          if (hasValidExternalId) {
+            // Go directly to consultation (matched state) - skip staging
+            // Create a match with a dummy Uno record or use the last Uno if available
+            const lastUno = state.queuesigned[state.queuesigned.length - 1];
+            let matchRecord;
+
+            if (lastUno) {
+              // Use the last Uno record for matching
+              matchRecord = finalizeMatch(lastUno, record, "Automatico (da XML con ID valido)");
+              state.matched.unshift(matchRecord);
+              state.metrics.auto++;
+              logEvent(state, `Record XML con ID valido andato direttamente in consultazione: ${matchRecord.id}`);
+            } else {
+              // Create a minimal Uno record for matching
+              const unoRecord = {
+                id: `UNO-${Math.floor(1000 + Math.random() * 9000)}`,
+                cliente_nome_cognome: record.cliente_nome_cognome,
+                cliente_codice_fiscale: record.cliente_codice_fiscale,
+                cliente_partita_iva: record.cliente_partita_iva,
+                data_firma_contratto: record.data_firma_contratto,
+                codice_pod: record.codice_pod,
+                codice_pdr: record.codice_pdr,
+                contract_account: record.contract_account,
+                pde_external_id: record.pde_external_id,
+                commodity: record.commodity,
+                cliente_codice_identificativo_univoco: record.cliente_codice_identificativo_univoco,
+                cliente_record_type_testuale: record.cliente_record_type_testuale,
+                opportunita_tipo_record: record.opportunita_tipo_record,
+                opportunita_id: record.opportunita_id,
+                opportunita_nome: record.opportunita_nome,
+                opportunita_commodity: record.opportunita_commodity,
+                codice_prodotto_ee: record.codice_prodotto_ee,
+                codice_prodotto_gas: record.codice_prodotto_gas,
+                stato: record.stato,
+                data_certificazione: record.data_certificazione
+              };
+
+              matchRecord = finalizeMatch(unoRecord, record, "Automatico (da XML con ID valido)");
+              state.matched.unshift(matchRecord);
+              state.metrics.auto++;
+              logEvent(state, `Record XML con ID valido andato direttamente in consultazione (con Uno generato): ${matchRecord.id}`);
+            }
+
+            save();
+            render();
+            toast(`Record XML con ID valido elaborato e inviato direttamente in consultazione: ${record.id}`);
+          } else {
+            // No valid external ID - go to staging as before
+            state.queuearchived.push(record);
+            state.lastPostelId = record.id;
+            save();
+            render();
+            toast(`Record Postel ${record.id} inserito nello Staging (ID esterno non valido o mancante)`);
+          }
+        } catch (err) {
+          toast("Errore nel parsing del file XML: " + err.message);
+          console.error(err);
+        }
+      };
+      reader.readAsText(file);
+    };
+    fileInput.click();
   };
   
   document.getElementById("btnAutoMatch").onclick = () => {
