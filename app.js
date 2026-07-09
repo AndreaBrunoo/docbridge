@@ -351,8 +351,33 @@ function initData() {
   }
 }
 
+function getActiveRepoByCategory(category) {
+  return repoManaged.find((repo) => repo.active && getRepoCategory(repo) === category) || null;
+}
+
+function getDefaultOriginRepo(category) {
+  const repo = getActiveRepoByCategory(category);
+  return repo?.name || (category === "Postel" ? "Postel" : "Uno Energy");
+}
+
+function getRecordOriginLabel(record) {
+  const candidates = [record?.origin_repo, record?.source_repo, record?.repository_origin].filter(Boolean);
+  return candidates[0] || "Repository non specificato";
+}
+
+function getRecordProvenanceLabel(record) {
+  const repositories = Array.isArray(record?.source_repositories) && record.source_repositories.length
+    ? record.source_repositories.filter(Boolean)
+    : [];
+  if (repositories.length) return repositories.join(" + ");
+  const direct = getRecordOriginLabel(record);
+  return direct;
+}
+
 function finalizeMatch(u, p, type) {
   const conf = confidence(u, p);
+  const repos = [u.origin_repo || getDefaultOriginRepo("Uno Energy"), p.origin_repo || getDefaultOriginRepo("Postel")].filter(Boolean);
+  const provenanceLabel = repos.length ? repos.join(" + ") : "Repository non specificato";
   return {
     ...u,
     id: `DOC-${Math.floor(10000 + Math.random() * 90000)}`,
@@ -365,6 +390,10 @@ function finalizeMatch(u, p, type) {
     tipo_match: type,
     match_score: conf.score,
     matched_at: new Date().toLocaleString("it-IT"),
+    origin_repo: provenanceLabel,
+    source_repositories: repos,
+    uno_origin_repo: u.origin_repo || getDefaultOriginRepo("Uno Energy"),
+    postel_origin_repo: p.origin_repo || getDefaultOriginRepo("Postel"),
     // Tracciamento GDPR: chi ha effettuato il match. "system" per i match
     // generati automaticamente dal flusso (es. ingest Postel con ID valido)
     // quando l'utente non ha eseguito un'azione esplicita.
@@ -442,7 +471,7 @@ function parseCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i], sep).map((v) => v.trim());
     if (values.every((v) => v === "")) continue;
-    const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
+    const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}`, origin_repo: getDefaultOriginRepo("Uno Energy") };
     headers.forEach((h, idx) => {
       if (h) r[h] = values[idx] !== undefined ? values[idx] : "";
     });
@@ -791,6 +820,7 @@ function renderConsultazione() {
 
     const tr = document.createElement("tr");
     const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
+    const provenanceLabel = getRecordProvenanceLabel(d);
     const deleteBtn = can("action:elimina-record")
       ? '<button class="btn-delete-row" title="Elimina record">🗑️</button>'
       : "";
@@ -800,7 +830,10 @@ function renderConsultazione() {
       <td>${d.cliente_nome_cognome}</td>
       <td>${d.commodity || "Energia Elettrica"}</td>
       <td><time>${d.data_firma_contratto || 'N/D'}</time></td>
-      <td>${badgeText}</td>
+      <td>
+        <div>${badgeText}</div>
+        <div class="repo-origin-pill">Repository: ${escapeHtml(provenanceLabel)}</div>
+      </td>
       <td>${deleteBtn}</td>
     `;
 
@@ -839,7 +872,10 @@ function renderStaging() {
     tr.innerHTML = `
       <td><b>${u.id}</b></td>
       <td>${u.cliente_nome_cognome}</td>
-      <td><small>${podPdrValue(u)}</small></td>
+      <td>
+        <div><small>${podPdrValue(u)}</small></div>
+        <div class="repo-origin-pill">Repository: ${escapeHtml(getRecordOriginLabel(u))}</div>
+      </td>
       <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
     `;
     tr.onclick = (e) => {
@@ -862,7 +898,10 @@ function renderStaging() {
     tr.innerHTML = `
       <td><b>${p.id}</b></td>
       <td>${p.cliente_nome_cognome}</td>
-      <td><small>${podPdrValue(p)}</small></td>
+      <td>
+        <div><small>${podPdrValue(p)}</small></div>
+        <div class="repo-origin-pill">Repository: ${escapeHtml(getRecordOriginLabel(p))}</div>
+      </td>
       <td><button class="btn-delete-row" title="Rimuovi">🗑️</button></td>
     `;
     tr.onclick = (e) => {
@@ -1005,6 +1044,7 @@ function openDrawer(d) {
   });
   if (d.tipo_match) {
     grid.innerHTML += `<div class="meta"><small>Tipo abbinamento</small><b>${d.tipo_match}</b></div>`;
+    grid.innerHTML += `<div class="meta"><small>Repository di provenienza</small><b>${escapeHtml(getRecordProvenanceLabel(d))}</b></div>`;
     grid.innerHTML += `<div class="meta"><small>Abbinato il</small><b>${d.matched_at}</b></div>`;
   }
   document.getElementById("pdfClientName").innerText = d.cliente_nome_cognome;
@@ -1281,7 +1321,7 @@ function closeModal() {
 function getManualRecord() {
   const form = document.getElementById("manualForm");
   if (!form) return null;
-  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}` };
+  const r = { id: `UNO-${Math.floor(1000 + Math.random() * 9000)}`, origin_repo: "Inserimento manuale" };
   FIELDS.forEach(([k]) => {
     const el = form.querySelector(`[name="${k}"]`);
     if (el) r[k] = el.value;
@@ -1774,6 +1814,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
           // Generate ID
           record.id = `POS-${Math.floor(2000 + Math.random() * 9000)}`;
+          record.origin_repo = getDefaultOriginRepo("Postel");
 
           // Check if we have a valid external ID
           const hasValidExternalId = record.pde_external_id &&
