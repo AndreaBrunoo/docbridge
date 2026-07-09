@@ -119,6 +119,7 @@ select {
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
+  margin-bottom: 0.5rem;
 }
 .nav-item:hover {
   background: var(--panel-nested);
@@ -1213,4 +1214,92 @@ body::before {
 }
 body.animating-theme::before {
   transform: translate(-50%, -50%) scale(1);
+}
+.repo-card-wrap {
+  position: relative;
+}
+#repoCard {
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+#repoCard:hover {
+  border-color: var(--text);
+}
+.repo-toggle-panel {
+  position: absolute;
+  top: -80px;
+  left: 100%;
+  margin-left: 12px;
+  width: 220px;
+  min-height: 220px;
+  max-height: 420px;
+  overflow: visible;
+  background: var(--panel-nested);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  z-index: 50;
+  display: none;
+}
+.repo-toggle-panel.open {
+  display: block;
+}
+.repo-toggle-panel small {
+  color: var(--muted);
+  display: block;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.repo-toggle-section {
+  margin-bottom: 12px;
+}
+.repo-toggle-section:last-child {
+  margin-bottom: 0;
+}
+.repo-toggle-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+.repo-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 9px 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  text-align: left;
+}
+.repo-toggle-row:last-child {
+  margin-bottom: 0;
+}
+.repo-toggle-row:hover {
+  background: var(--line);
+}
+.repo-toggle-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.repo-toggle-row:disabled:hover {
+  background: var(--panel);
+}
+.repo-toggle-name {
+  flex: 1;
+  font-weight: 500;
+}
+.repo-toggle-state {
+  font-size: 11px;
+  color: var(--muted);
 }

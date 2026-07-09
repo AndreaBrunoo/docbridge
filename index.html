@@ -29,15 +29,23 @@
           <button class="nav-item" data-view="api">⌘ API / CLI</button>
           <button class="nav-item" id="nav-users" data-view="users">🛡 Gestione utenti</button>
         </nav>
-        <div class="side-card">
-          <small>Flussi attivi</small>
-          <div class="flow-status">
-            <span class="dot green"></span> Uno Energy
-          </div>
-          <div class="flow-status">
-            <span class="dot green"></span> Postel simulato
-          </div>
-        </div>
+        <div class="repo-card-wrap">
+  <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
+    <small>Repository attive</small>
+    <div id="repoStatusList">
+      <div class="flow-status"><span class="dot green"></span> Unoenergy</div>
+      <div class="flow-status"><span class="dot green"></span> Postel</div>
+      <div class="flow-status"><span class="dot red"></span> Postel2</div>
+      <div class="flow-status"><span class="dot green"></span> Unoenergy2</div>
+      
+    </div>
+  </div>
+
+  <div class="repo-toggle-panel" id="repoTogglePanel">
+    <small>Gestisci repository</small>
+    <div id="repoToggleList"></div>
+  </div>
+</div>
         <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
         <button id="resetDemo" class="ghost full mt-sm" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati demo</button>
       </aside>
