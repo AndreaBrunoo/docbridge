@@ -94,6 +94,9 @@ select {
   flex: 1;
 }
 .nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: transparent;
   border: 0;
   color: var(--muted);
@@ -234,6 +237,22 @@ button.full {
   width: 100%;
   justify-content: center;
 }
+/*-- bottone staging --- */
+.nav-item.staging-btn {
+  position: relative;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  background-color: red;
+  border-radius: 50%;
+}
+
+.hidden {
+  display: none;
+}
+/* --- MARGINI E LARGHEZZA COLONNE --- */
 .mt-sm {
   margin-top: 8px;
 }

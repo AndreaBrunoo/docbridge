@@ -103,6 +103,7 @@ function normalizeState(loaded) {
 
 function save() {
   try {
+    updateNotificationDot();
     localStorage.setItem("dockbridgePremiumState", JSON.stringify(state));
     return true;
   } catch (err) {
@@ -504,6 +505,10 @@ function renderConsultazione() {
   if (count === 0)
     b.innerHTML = '<tr><td colspan="6" class="empty">Nessun abbinamento presente. Avvia il matching dall\'Area Staging.</td></tr>';
 }
+// Area Staging: gestione delle code di contratti Uno Energy e Postel, con selezione e confronto manuale.
+function getStagingCount() {
+  return state.queuesigned.length + state.queuearchived.length;
+}
 
 function renderStaging() {
   const q = document.getElementById("stagingSearch").value.toLowerCase();
@@ -563,6 +568,20 @@ function renderStaging() {
     bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
     bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
+  dot.classList.add("hidden");
+}
+
+function updateNotificationDot() {
+  const dot = document.getElementById("notificationDot");
+
+  const current = getStagingCount();
+  const lastSeen = parseInt(localStorage.getItem("stagingLastSeenCount")) || 0;
+
+  if (current > lastSeen) {
+    dot.classList.remove("hidden");
+  } else {
+    dot.classList.add("hidden");
+  }
 }
 
 function checkStickyMatch() {
@@ -949,3 +968,50 @@ window.addEventListener("DOMContentLoaded", () => {
   
   render();
 });
+
+//logica del pallino rosso delle notifiche
+
+const dot = document.getElementById("notificationDot");
+const btn = document.getElementById("stagingBtn");
+
+// chiave per salvare stato
+const STORAGE_KEY = "stagingLastSeen";
+const UPDATE_KEY = "stagingLastUpdate";
+
+// 1. inizializza aggiornamento (simulato)
+if (!localStorage.getItem(UPDATE_KEY)) {
+  localStorage.setItem(UPDATE_KEY, Date.now());
+}
+
+// 2. controlla se mostrare il pallino
+function checkNotification() {
+  const lastSeen = localStorage.getItem(STORAGE_KEY);
+  const lastUpdate = localStorage.getItem(UPDATE_KEY);
+
+  if (!lastSeen || lastUpdate > lastSeen) {
+    dot.classList.remove("hidden");
+  } else {
+    dot.classList.add("hidden");
+  }
+}
+
+// 3. quando l'utente entra nello staging
+btn.addEventListener("click", () => {
+  localStorage.setItem(STORAGE_KEY, Date.now());
+  dot.classList.add("hidden");
+
+  // qui vai alla pagina staging
+  console.log("entra in staging");
+});
+
+// 4. simula aggiornamento (per demo)
+function simulateUpdate() {
+  localStorage.setItem(UPDATE_KEY, Date.now());
+  checkNotification();
+}
+
+// inizializza
+checkNotification();
+
+// opzionale: bottone demo o trigger manuale
+window.simulateUpdate = simulateUpdate;
