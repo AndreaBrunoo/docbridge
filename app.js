@@ -313,7 +313,6 @@ function confidence(u, p) {
     codice_pod: 20,
     codice_pdr: 20,
     contract_account: 15,
-    pde_external_id: 15,
     cliente_codice_identificativo_univoco: 10,
     data_firma_contratto: 8,
     commodity: 8,
@@ -1019,10 +1018,11 @@ function openManualCompare() {
   FIELDS.forEach(([k, label]) => {
     if (selectedUno[k] || selectedPostel[k]) {
       const eq = selectedUno[k] === selectedPostel[k];
-      const cls = !eq ? "changed" : "";
+      const isIgnoredConflict = k === "pde_external_id";
+      const cls = isIgnoredConflict || eq ? "" : "changed";
       const safeU = escapeHtml(selectedUno[k] || "—");
       const safeP = escapeHtml(selectedPostel[k] || "—");
-      if (eq) {
+      if (isIgnoredConflict || eq) {
         b.innerHTML += `
     <div class="diff ${cls}"><small>${label} (Uno Energy): </small><b>${safeU}</b></div>
     <div class="diff ${cls}"><small>${label} (Postel): </small><b>${safeP}</b></div>
@@ -1063,8 +1063,12 @@ function renderReconFooter() {
   if (!footer) return;
   const grid = document.getElementById("compareDiffGrid");
   // Conta i riquadri "changed" ancora da risolvere (cioè non confermati
-  // e non dentro un editor unificato aperto)
-  const pending = grid.querySelectorAll(".diff.changed").length;
+  // e non dentro un editor unificato aperto). Il campo Pde External ID non
+  // va considerato come conflitto di matching e non deve bloccare l'accoppiamento.
+  const pending = Array.from(grid.querySelectorAll(".diff.changed")).filter((el) => {
+    const key = el.getAttribute("data-key");
+    return key !== "pde_external_id";
+  }).length;
   const merged = grid.querySelectorAll(".diff-merged").length;
   const totalConflicts = pending + merged;
   const btnAccoppia = document.getElementById("reconAccoppia");
