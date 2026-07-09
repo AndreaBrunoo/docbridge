@@ -1015,7 +1015,137 @@ function randomNomeOpportunita() {
   const tipologie = ["Business", "Retail", "PMI", "Condominio", "Residenziale"];
   return `${pickRandom(prefissi)} ${pickRandom(tipologie)} ${pickRandom(["EE", "GAS", "Dual"])}`;
 }
+// --- Gestione visuale "Repository attive" (solo demo, nessun salvataggio) ---
+const repoManaged = [
+  { id: "uno", name: "Uno Energy", active: true, category: "Uno Energy" },
+  { id: "uno2", name: "Uno Energy 2", active: false, category: "Uno Energy" },
+  { id: "postel1", name: "Postel1", active: true, category: "Postel" },
+  { id: "postel2", name: "Postel2", active: false, category: "Postel" },
+];
 
+function getRepoCategory(repo) {
+  const name = (repo?.name || "").toLowerCase();
+  return name.includes("postel") ? "Postel" : "Uno Energy";
+}
+
+function getActiveRepoCount() {
+  return repoManaged.filter((r) => r.active).length;
+}
+
+function getActiveRepoCountByCategory(category) {
+  return repoManaged.filter((r) => r.active && getRepoCategory(r) === category).length;
+}
+
+function hasRequiredRepoSelection() {
+  return getActiveRepoCountByCategory("Postel") >= 1 && getActiveRepoCountByCategory("Uno Energy") >= 1;
+}
+
+// Disegna il riquadro principale nella sidebar, mostrando solo i repository attivi
+function renderRepoStatusList() {
+  const list = document.getElementById("repoStatusList");
+  if (!list) return;
+  const activeRepos = repoManaged.filter((r) => r.active);
+  if (activeRepos.length === 0) {
+    list.innerHTML = '<div class="flow-status"><span class="dot red"></span> Nessun repository attivo</div>';
+    return;
+  }
+  list.innerHTML = activeRepos
+    .map(
+      (r) => `<div class="flow-status"><span class="dot green"></span> ${r.name}</div>`
+    )
+    .join("");
+}
+
+// Disegna il pannello di gestione con le righe cliccabili per attivare/disattivare
+function renderRepoTogglePanel() {
+  const list = document.getElementById("repoToggleList");
+  if (!list) return;
+
+  const grouped = [
+    { title: "Postel", items: repoManaged.filter((r) => getRepoCategory(r) === "Postel") },
+    { title: "Uno Energy", items: repoManaged.filter((r) => getRepoCategory(r) === "Uno Energy") },
+  ];
+
+  list.innerHTML = grouped
+    .map((group) => {
+      const itemsMarkup = group.items
+        .map((r) => {
+          const isActive = r.active;
+          const stateLabel = isActive ? "Attivo" : "Non attivo";
+          return `
+            <button
+              type="button"
+              class="repo-toggle-row"
+              data-repo="${r.id}"
+            >
+              <span class="dot ${isActive ? "green" : "red"}"></span>
+              <span class="repo-toggle-name">${r.name}</span>
+              <span class="repo-toggle-state">${stateLabel}</span>
+            </button>
+          `;
+        })
+        .join("");
+
+      return `
+        <div class="repo-toggle-section">
+          <div class="repo-toggle-section-title">${group.title}</div>
+          ${itemsMarkup}
+        </div>
+      `;
+    })
+    .join("");
+
+  list.querySelectorAll(".repo-toggle-row").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.getAttribute("data-repo");
+      const repo = repoManaged.find((r) => r.id === id);
+      if (!repo) return;
+
+      const category = getRepoCategory(repo);
+      const otherCategory = category === "Postel" ? "Uno Energy" : "Postel";
+      const activeInCategory = getActiveRepoCountByCategory(category);
+      const activeInOtherCategory = getActiveRepoCountByCategory(otherCategory);
+
+      if (repo.active) {
+        if (activeInCategory <= 1 || activeInOtherCategory <= 0) {
+          toast("Serve almeno un repository attivo per ciascuna categoria.");
+          return;
+        }
+        repo.active = false;
+      } else {
+        if (activeInOtherCategory <= 0) {
+          toast("Serve almeno un repository attivo per entrambe le categorie.");
+          return;
+        }
+
+        if (activeInCategory >= 1) {
+          repoManaged.forEach((item) => {
+            if (getRepoCategory(item) === category && item.active) {
+              item.active = false;
+            }
+          });
+        }
+        repo.active = true;
+      }
+
+      if (!hasRequiredRepoSelection()) {
+        toast("Seleziona almeno un repository Postel e uno Uno Energy.");
+        return;
+      }
+
+      renderRepoTogglePanel();
+      renderRepoStatusList();
+    };
+  });
+}
+
+function toggleRepoPanel(forceState) {
+  const panel = document.getElementById("repoTogglePanel");
+  if (!panel) return;
+  const shouldOpen = typeof forceState === "boolean" ? forceState : !panel.classList.contains("open");
+  panel.classList.toggle("open", shouldOpen);
+  if (shouldOpen) renderRepoTogglePanel();
+}
 document.getElementById("themeToggle").addEventListener("click", (e) => {
   const x = e.clientX;
   const y = e.clientY;
@@ -1053,6 +1183,14 @@ document.getElementById("themeToggle").addEventListener("click", (e) => {
 });
 
 window.addEventListener("DOMContentLoaded", () => {
+  renderRepoStatusList();
+
+document.getElementById("repoCard").addEventListener("click", (e) => {
+  e.stopPropagation();
+  toggleRepoPanel();
+});
+document.getElementById("repoTogglePanel").addEventListener("click", (e) => e.stopPropagation());
+document.addEventListener("click", () => toggleRepoPanel(false));
   if (state.dark) {
     document.body.classList.add("dark");
     document.getElementById("themeToggle").innerHTML = "☀️ White mode";
