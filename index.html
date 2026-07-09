@@ -90,7 +90,9 @@
             <div id="matchChart" class="chart-bars"></div>
           </div>
           <div class="card">
-            <div class="card-head"><h3>Tipologia Commodity (Contratti Abbinati)</h3></div>
+            <div class="card-head">
+              <h3>Tipologia Commodity (Contratti Abbinati)</h3>
+            </div>
             <div id="commodityChart" class="chart-bars"></div>
           </div>
         </div>
@@ -350,21 +352,19 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
   <div id="loginOverlay" class="login-overlay">
     <form id="loginForm" class="login-panel" onsubmit="return false;">
       <div class="login-brand">
-        <div class="brand-mark">D</div>
-        <div>
-          <strong>DocBridge</strong>
-          <span>Accesso demo</span>
-        </div>
+          <div class="brand-mark">
+            <img style="width: 100%; height: auto;" src="images/unoenergy-saving-solutions.png" alt="DocBridge">
+          </div>
       </div>
-      <p class="login-hint">Seleziona un utente demo per accedere.</p>
-      <div id="loginUserList" class="login-user-list"></div>
-      <div class="field">
-        <label for="loginPassword">Password</label>
-        <input type="password" id="loginPassword" name="password" autocomplete="off" />
-      </div>
-      <div id="loginError" class="login-error"></div>
-      <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
-    </form>
+  <p class="login-hint">Seleziona un utente demo per accedere.</p>
+  <div id="loginUserList" class="login-user-list"></div>
+  <div class="field">
+    <label for="loginPassword">Password</label>
+    <input type="password" id="loginPassword" name="password" autocomplete="off" />
+  </div>
+  <div id="loginError" class="login-error"></div>
+  <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
+  </form>
   </div>
 
   <div id="drawer" class="drawer">
