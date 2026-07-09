@@ -243,6 +243,11 @@ button.ghost {
   color: var(--text);
   border: 1px solid var(--line);
 }
+button.ghostPostel {
+  background: #ebdb00;
+  color: #0b3c8a;
+  border: 1px solid var(--line);
+}
 button.ghost:hover {
   background: var(--panel-nested);
 }
