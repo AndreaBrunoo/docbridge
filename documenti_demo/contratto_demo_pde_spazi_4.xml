@@ -1,0 +1,23 @@
+<root>
+  <info>
+    <cliente_nome_cognome>Anna Bruni</cliente_nome_cognome>
+    <cliente_codice_fiscale>BNCSTN85B12F205Z</cliente_codice_fiscale>
+    <cliente_partita_iva>01234567894</cliente_partita_iva>
+    <data_firma_contratto>2026-07-09</data_firma_contratto>
+    <codice_pod>IT001E92619203</codice_pod>
+    <codice_pdr/>
+    <contract_account>CA-981801</contract_account>
+    <pde_external_id>  PDE-751220  </pde_external_id>
+    <commodity>EE</commodity>
+    <cliente_codice_identificativo_univoco>CID-004</cliente_codice_identificativo_univoco>
+    <cliente_record_type_testuale>Business</cliente_record_type_testuale>
+    <opportunita_tipo_record>Contratto Energia elettrica</opportunita_tipo_record>
+    <opportunita_id>OPP-4984</opportunita_id>
+    <opportunita_nome>Migrazione Energia elettrica</opportunita_nome>
+    <opportunita_commodity>EE</opportunita_commodity>
+    <codice_prodotto_ee>DUAL_FLAT_EE</codice_prodotto_ee>
+    <codice_prodotto_gas/>
+    <stato>In lavorazione</stato>
+    <data_certificazione>2026-07-09</data_certificazione>
+  </info>
+</root>
