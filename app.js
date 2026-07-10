@@ -1019,6 +1019,21 @@ function autoMatchSelectedPair() {
 
   const u = selectedUno,
     p = selectedPostel;
+  const uHasValidPde = isValidPdeExternalId(u.pde_external_id);
+  const pHasValidPde = isValidPdeExternalId(p.pde_external_id);
+  const bothHaveInvalidPde = !uHasValidPde && !pHasValidPde;
+
+  if (bothHaveInvalidPde) {
+    const msg = "Match automatico non disponibile: entrambi i record hanno ID esterno PDE non valido.";
+    logEvent(state, msg);
+    toast(msg);
+    return;
+  }
+
+  if (commodityIncompatible(u, p)) {
+    toast("Abbinamento non consentito: un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).");
+    return;
+  }
   const conf = confidence(u, p);
   if (conf.score >= 100) {
     state.matched.unshift(finalizeMatch(u, p, "Automatico"));
