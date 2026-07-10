@@ -295,7 +295,9 @@ function isGasRecord(d) {
 }
 
 function podPdrValue(d) {
-  return isGasRecord(d) ? (d.codice_pdr || "N/D") : (d.codice_pod || "N/D");
+  return isGasRecord(d)
+    ? (d.codice_pdr || d.codice_pod || "N/D")
+    : (d.codice_pod || d.codice_pdr || "N/D");
 }
 
 function confidence(u, p) {
@@ -799,7 +801,7 @@ function renderConsultazione() {
 
   const matchesOnly = state.matched.map((d) => ({
     d,
-    emoji: d.tipo_match === "Automatico" || "Automatico (da XML con ID valido)" ? "🤖" : "✋"
+    emoji: d.tipo_match === "Automatico" || d.tipo_match === "Automatico (da XML con ID valido)" ? "🤖" : "✋"
   }));
 
   let count = 0;
@@ -1062,6 +1064,11 @@ function closeDrawer() {
 // del modal di Confronto Riconciliazione guidata. Serve per supportare il
 // tasto "Annulla" del footer, che ripristina i record allo stato pre-modifica.
 let _reconSnapshot = null;
+// Totale FISSO dei campi in mismatch, calcolato una sola volta all'apertura
+// del modal. Non va mai ricalcolato durante la sessione di riconciliazione:
+// rappresenta il numero di errori originali (Y), che non deve diminuire
+// mano a mano che l'utente risolve i singoli campi.
+let _reconTotalConflicts = 0;
 
 function openManualCompare() {
   if (!selectedUno || !selectedPostel) return;
@@ -1110,6 +1117,15 @@ function openManualCompare() {
       openUnifiedEditor(key, diff, diffOther, source);
     });
   });
+  // Numero di CAMPI (non di riquadri: ogni campo in mismatch genera 2
+  // riquadri, uno per Unoenergy e uno per Postel) effettivamente in
+  // mismatch all'apertura. Questo è il totale "Y" e resta fisso per tutta
+  // la sessione di riconciliazione, anche mentre l'utente risolve i campi.
+  _reconTotalConflicts = new Set(
+    Array.from(b.querySelectorAll(".diff.changed"))
+      .map((el) => el.getAttribute("data-key"))
+      .filter((key) => key && key !== "pde_external_id")
+  ).size;
   renderReconFooter();
   m.classList.add("open");
 }
@@ -1122,15 +1138,19 @@ function renderReconFooter() {
   const footer = document.getElementById("reconFooter");
   if (!footer) return;
   const grid = document.getElementById("compareDiffGrid");
-  // Conta i riquadri "changed" ancora da risolvere (cioè non confermati
-  // e non dentro un editor unificato aperto). Il campo Pde External ID non
-  // va considerato come conflitto di matching e non deve bloccare l'accoppiamento.
-  const pending = Array.from(grid.querySelectorAll(".diff.changed")).filter((el) => {
-    const key = el.getAttribute("data-key");
-    return key !== "pde_external_id";
-  }).length;
-  const merged = grid.querySelectorAll(".diff-merged").length;
-  const totalConflicts = pending + merged;
+  // Conta i CAMPI (non i singoli riquadri: ogni campo non risolto ha 2
+  // riquadri "changed", uno Unoenergy e uno Postel, con lo stesso
+  // data-key) ancora da risolvere. Il campo Pde External ID non va
+  // considerato come conflitto di matching e non deve bloccare l'accoppiamento.
+  const pending = new Set(
+    Array.from(grid.querySelectorAll(".diff.changed"))
+      .map((el) => el.getAttribute("data-key"))
+      .filter((key) => key && key !== "pde_external_id")
+  ).size;
+  // Y: totale fisso calcolato all'apertura del modal (vedi openManualCompare).
+  // Non va MAI ricalcolato qui, altrimenti decrementerebbe insieme a X ogni
+  // volta che un campo viene unificato.
+  const totalConflicts = _reconTotalConflicts;
   const btnAccoppia = document.getElementById("reconAccoppia");
   const btnAnnulla = document.getElementById("reconAnnulla");
   const status = document.getElementById("reconStatus");
