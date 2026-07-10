@@ -300,6 +300,16 @@ function podPdrValue(d) {
     : (d.codice_pod || d.codice_pdr || "N/D");
 }
 
+// Un record Elettrica (identificato da POD) e un record Gas (identificato
+// da PDR) non sono compatibili per l'abbinamento: sono identificativi di
+// natura diversa e non ha senso "unificarli" tramite la riconciliazione
+// guidata. Questo controllo blocca sia il match automatico che quello
+// manuale quando i due record selezionati appartengono a commodity diverse.
+function commodityIncompatible(u, p) {
+  if (!u || !p) return false;
+  return isGasRecord(u) !== isGasRecord(p);
+}
+
 function confidence(u, p) {
   if (!u || !p) return { score: 0, type: "Anomalo", reasons: [] };
   let matchCount = 0,
@@ -948,12 +958,31 @@ function updateNotificationDot() {
 function checkStickyMatch() {
   const el = document.getElementById("stickyMatch");
   if (!el) return;
+  const btnCompare = document.getElementById("btnManualMatch");
+  const btnAuto = document.getElementById("btnStickyAutoMatch");
   if (selectedUno && selectedPostel) {
-    const conf = confidence(selectedUno, selectedPostel);
-    document.getElementById("stickyMatchText").innerHTML =
-      `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
+    if (commodityIncompatible(selectedUno, selectedPostel)) {
+      // Blocco totale: un record Elettrica (POD) e un record Gas (PDR)
+      // non possono essere abbinati, né automaticamente né tramite
+      // riconciliazione guidata. Disabilitiamo entrambi i tasti invece di
+      // lasciare che l'utente li "forzi" tramite l'editor unificato.
+      document.getElementById("stickyMatchText").innerHTML =
+        `⚠️ <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b>: abbinamento non consentito. ` +
+        `<span>Un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).</span>`;
+      el.classList.add("sticky-match-blocked");
+      if (btnCompare) btnCompare.disabled = true;
+      if (btnAuto) btnAuto.disabled = true;
+    } else {
+      const conf = confidence(selectedUno, selectedPostel);
+      document.getElementById("stickyMatchText").innerHTML =
+        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
+      el.classList.remove("sticky-match-blocked");
+      if (btnCompare) btnCompare.disabled = false;
+      if (btnAuto) btnAuto.disabled = false;
+    }
     el.style.display = "flex";
   } else {
+    el.classList.remove("sticky-match-blocked");
     el.style.display = "none";
   }
 }
@@ -966,6 +995,10 @@ function autoMatchSelectedPair() {
   if (!selectedUno || !selectedPostel) return;
   const u = selectedUno,
     p = selectedPostel;
+  if (commodityIncompatible(u, p)) {
+    toast("Abbinamento non consentito: un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).");
+    return;
+  }
   const conf = confidence(u, p);
   if (conf.score >= 100) {
     state.matched.unshift(finalizeMatch(u, p, "Automatico"));
@@ -1075,6 +1108,10 @@ let _reconTotalConflicts = 0;
 
 function openManualCompare() {
   if (!selectedUno || !selectedPostel) return;
+  if (commodityIncompatible(selectedUno, selectedPostel)) {
+    toast("Abbinamento non consentito: un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).");
+    return;
+  }
   const m = document.getElementById("modalCompare");
   if (!m) return;
   document.getElementById("compareTitle").innerText = `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
@@ -1952,6 +1989,10 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("reconAnnulla").onclick = reconAnnullaTutto;
   document.getElementById("reconAccoppia").onclick = () => {
     if (document.getElementById("reconAccoppia").disabled) return;
+    if (commodityIncompatible(selectedUno, selectedPostel)) {
+      toast("Abbinamento non consentito: un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).");
+      return;
+    }
     _reconSnapshot = null; // le modifiche sono confermate, non servono più
     closeModal();
     manualMatch(selectedUno, selectedPostel);

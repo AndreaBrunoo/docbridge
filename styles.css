@@ -681,6 +681,21 @@ select:focus {
   z-index: 10;
 }
 
+.sticky-match-blocked {
+  border: 1px solid var(--red) !important;
+  background: linear-gradient(135deg, var(--panel) 0%, rgba(239, 68, 68, 0.08) 100%) !important;
+}
+
+.sticky-match-blocked #stickyMatchText {
+  color: var(--red);
+}
+
+.sticky-match button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(40%);
+}
+
 .sticky-match span {
   display: block;
   font-size: 12px;
