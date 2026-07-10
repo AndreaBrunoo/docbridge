@@ -300,6 +300,15 @@ function podPdrValue(d) {
     : (d.codice_pod || d.codice_pdr || "N/D");
 }
 
+// Checks if a PDE external ID is valid (not null, not empty, not "null", not "undefined")
+function isValidPdeExternalId(value) {
+  return value &&
+    typeof value === 'string' &&
+    value.trim() !== '' &&
+    value.trim() !== 'null' &&
+    value.trim() !== 'undefined';
+}
+
 function confidence(u, p) {
   if (!u || !p) return { score: 0, type: "Anomalo", reasons: [] };
   let matchCount = 0,
@@ -410,6 +419,17 @@ function autoMatchAll(silent = false) {
     let best = null,
       bestScore = -1;
     state.queuearchived.forEach((p) => {
+      // Check if both records have invalid PDE external ID
+      // If both are invalid, they cannot be matched automatically
+      const uHasValidPde = isValidPdeExternalId(u.pde_external_id);
+      const pHasValidPde = isValidPdeExternalId(p.pde_external_id);
+      const bothHaveInvalidPde = !uHasValidPde && !pHasValidPde;
+
+      if (bothHaveInvalidPde) {
+        // Skip this pair - cannot match if both have invalid PDE external ID
+        return;
+      }
+
       const c = confidence(u, p);
       if (c.score > bestScore) {
         bestScore = c.score;
@@ -923,7 +943,7 @@ function renderStaging() {
     bUno.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
   if (state.queuearchived.length === 0)
     bPostel.innerHTML = '<tr><td colspan="4" class="empty">Coda vuota</td></tr>';
-    dot.classList.add("hidden");
+  dot.classList.add("hidden");
 }
 
 function updateNotificationDot() {
@@ -957,9 +977,24 @@ function checkStickyMatch() {
 // come la logica del pulsante "Match automatico" globale; altrimenti avvisa
 // l'utente e lo indirizza al confronto manuale, senza forzare nulla.
 function autoMatchSelectedPair() {
-  if (!selectedUno || !selectedPostel) return;
+  if (!selectedUno || !selectedPostel) {
+    logEvent(state, "Tentativo di match automatico senza coppia selezionata");
+    return;
+  }
+
   const u = selectedUno,
     p = selectedPostel;
+  const uHasValidPde = isValidPdeExternalId(u.pde_external_id);
+  const pHasValidPde = isValidPdeExternalId(p.pde_external_id);
+  const bothHaveInvalidPde = !uHasValidPde && !pHasValidPde;
+
+  if (bothHaveInvalidPde) {
+    const msg = "Match automatico non disponibile: entrambi i record hanno ID esterno PDE non valido.";
+    logEvent(state, msg);
+    toast(msg);
+    return;
+  }
+
   const conf = confidence(u, p);
   if (conf.score >= 100) {
     state.matched.unshift(finalizeMatch(u, p, "Automatico"));
@@ -974,11 +1009,24 @@ function autoMatchSelectedPair() {
     render();
     toast("Record abbinati automaticamente (100% di confidenza)");
   } else {
-    toast(`Match automatico non disponibile: confidenza ${conf.score}% (serve 100%). Usa "Confronta Dati" per l'accoppiamento manuale.`);
+    const msg = `Match automatico non disponibile: confidenza ${conf.score}% (serve 100%).`;
+    logEvent(state, msg);
+    toast(msg);
   }
 }
 
 function manualMatch(u, p) {
+  const uHasValidPde = isValidPdeExternalId(u.pde_external_id);
+  const pHasValidPde = isValidPdeExternalId(p.pde_external_id);
+  const bothHaveInvalidPde = !uHasValidPde && !pHasValidPde;
+
+  if (bothHaveInvalidPde) {
+    const msg = "Abbinamento manuale non consentito: entrambi i record hanno ID esterno PDE non valido.";
+    logEvent(state, msg);
+    toast(msg);
+    return;
+  }
+
   const conf = confidence(u, p);
   if (u.commodity !== p.commodity) state.metrics.anom.commodity++;
   if (u.cliente_nome_cognome.trim().toLowerCase() !== p.cliente_nome_cognome.trim().toLowerCase())
@@ -1023,8 +1071,11 @@ function renderEvents() {
     el.querySelectorAll(".event-eye").forEach((btn) => {
       btn.onclick = () => {
         const idx = Number(btn.getAttribute("data-idx"));
-        if (_revealedEventIdx.has(idx)) _revealedEventIdx.delete(idx);
-        else _revealedEventIdx.add(idx);
+        if (_revealedEventIdx.has(idx)) {
+          _revealedEventIdx.delete(idx);
+        } else {
+          _revealedEventIdx.add(idx);
+        }
         renderEvents();
       };
     });
@@ -1034,6 +1085,7 @@ function renderEvents() {
 function openDrawer(d) {
   const dr = document.getElementById("drawer");
   if (!dr) return;
+  logEvent(state, `Dettagli documento aperti: ${d.id}`);
   document.getElementById("drawerTitle").innerText = `Dettagli documento ${d.id}`;
   const grid = document.getElementById("drawerMetaGrid");
   grid.innerHTML = "";
@@ -1057,6 +1109,7 @@ function openDrawer(d) {
 }
 
 function closeDrawer() {
+  logEvent(state, "Dettagli documento chiusi");
   document.getElementById("drawer")?.classList.remove("open");
 }
 
@@ -1071,6 +1124,7 @@ let _reconSnapshot = null;
 let _reconTotalConflicts = 0;
 
 function openManualCompare() {
+  logEvent(state, `Riconciliazione guidata aperta: ${selectedUno.id} ↔ ${selectedPostel.id}`);
   if (!selectedUno || !selectedPostel) return;
   const m = document.getElementById("modalCompare");
   if (!m) return;
@@ -1576,7 +1630,7 @@ function renderRepoTogglePanel() {
         }
         repo.active = true;
       }
-
+      logEvent(state, `Repository ${repo.name} ${repo.active ? "attivato" : "disattivato"}`);
       if (!hasRequiredRepoSelection()) {
         toast("Seleziona almeno un repository Postel e uno Unoenergy.");
         return;
@@ -1851,7 +1905,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
             if (existingRecord) {
               // Document with same PD external ID already exists
-              toast(`Errore: Documento con PD External ID "${record.pde_external_id}" già presente in consultazione. Non è stato inserito.`);
+              const msg = "Errore nel parsing del file XML: " + err.message;
+        toast(msg);
+        logEvent(state, msg);
               return; // Exit without inserting
             }
 
@@ -1928,6 +1984,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.getElementById("closeDrawer").onclick = closeDrawer;
   document.getElementById("resetDemo").onclick = () => {
+    logEvent(state, "Dati demo ripristinati");
     localStorage.removeItem("dockbridgePremiumState");
     location.reload();
   };
@@ -1996,6 +2053,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const el = document.querySelector(`[name="${k}"]`);
       if (el) el.value = r[k] || "";
     });
+    logEvent(state, "Compilati i campi manuali con dati demo");
   };
 
   render();
