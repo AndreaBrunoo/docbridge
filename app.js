@@ -718,7 +718,7 @@ function renderDashboard() {
     let eeCount = 0;
     let gasCount = 0;
     state.matched.forEach(item => {
-      if (item.commodity === "Gas naturale") gasCount++;
+      if (item.commodity === "GA") gasCount++;
       else eeCount++;
     });
     const totalMatched = state.matched.length;
