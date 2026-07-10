@@ -818,7 +818,8 @@ function renderConsultazione() {
         const fieldValue = (d[searchField] || "").toString().toLowerCase();
         if (!fieldValue.includes(q)) return;
       } else {
-        const matchStr = `${d.cliente_nome_cognome} ${d.id} ${podPdrValue(d)}`.toLowerCase();
+        const allValues = FIELDS.map(([key]) => d[key]).concat([d.id]);
+        const matchStr = allValues.filter(Boolean).join(" ").toLowerCase();
         if (!matchStr.includes(q)) return;
       }
     }
