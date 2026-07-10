@@ -1784,3 +1784,108 @@ body.animating-theme::before {
   font-size: 11px;
   color: var(--muted);
 }
+
+/* --- FILTRI AVANZATI (Consultazione) --- */
+
+/* Il modal Filtri Avanzati è una vista di selezione campi, non di
+ * confronto testi: gli serve una larghezza contenuta (≤ 640px) per non
+ * sprecare spazio. Manteniamo le altre regole di .modal-panel (centrato,
+ * padding, shadow, animazione). */
+#modalAdvancedFilters .modal-panel {
+  width: min(92vw, 640px);
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#modalAdvancedFilters h3 {
+  margin: 0 0 8px 0;
+}
+
+#modalAdvancedFilters .modal-hint {
+  margin: 0 0 14px 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding: 4px 2px 12px;
+  margin-bottom: 16px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.checkbox-row:hover { background: var(--panel-nested); }
+.checkbox-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent, #4f8cff);
+}
+.checkbox-row span {
+  color: var(--text);
+}
+
+/* Su schermi stretti la griglia diventa a colonna singola. */
+@media (max-width: 540px) {
+  .checkbox-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Badge filtri attivi sopra la tabella in Consultazione.
+ * Visibile solo se l'utente ha personalizzato i campi rispetto ai
+ * 6 predefiniti (gestito in JS via .hidden). */
+.active-filters-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  align-items: center;
+}
+.active-filters-bar small {
+  color: var(--muted);
+  margin-right: 4px;
+  font-size: 12px;
+}
+.active-filters-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--panel-nested);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--text);
+}
+/* La pill usata come bottone "Ripristina predefiniti" eredita lo
+ * stile .active-filters-pill ma deve sembrare cliccabile. */
+.active-filters-pill#resetActiveFiltersBtn {
+  cursor: pointer;
+  font-weight: 500;
+}
+.active-filters-pill#resetActiveFiltersBtn:hover {
+  background: var(--accent, #4f8cff);
+  color: #fff;
+  border-color: var(--accent, #4f8cff);
+}

@@ -108,22 +108,12 @@
       <section id="consultazione" class="view">
         <div class="card">
           <div class="search-row wrap">
-            <input type="text" id="docSearch" placeholder="Cerca per nome cliente, POD o ID..." class="mega-search" />
-            <select id="docCommodity" aria-label="Filtra per commodity">
-              <option value="">Tutte le commodity</option>
-              <option value="Energia Elettrica">Energia Elettrica</option>
-              <option value="Gas naturale">Gas naturale</option>
-            </select>
-            <select id="docSearchField" aria-label="Cerca per campo specifico">
-              <option value="">Tutti i campi</option>
-              <option value="cliente_codice_fiscale">Codice fiscale</option>
-              <option value="cliente_partita_iva">Partita IVA</option>
-              <option value="pde_external_id">PD External ID</option>
-              <option value="codice_pod">Codice POD</option>
-              <option value="codice_pdr">Codice PDR</option>
-              <option value="data_firma_contratto">Data firma</option>
-            </select>
+            <input type="text" id="docSearch"
+              placeholder="Cerca per Codice Fiscale, Partita IVA, PD External ID, Codice POD, Codice PDR o Data Firma…"
+              class="mega-search" />
+            <button id="btnAdvancedFilters" class="ghost" type="button">⚙ Filtri Avanzati</button>
           </div>
+          <div id="activeFiltersBar" class="active-filters-bar" hidden></div>
         </div>
         <div class="card">
           <div class="table-wrap">
@@ -428,6 +418,21 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
       </div>
       <div class="form-actions">
         <button class="ghost" id="closeModal">Chiudi finestra</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalAdvancedFilters" class="modal">
+    <div class="modal-panel">
+      <h3>Filtri Avanzati</h3>
+      <p class="modal-hint">Seleziona uno o più campi su cui filtrare la ricerca nella
+        Consultazione. Se nessun campo è selezionato, la ricerca usa i 6 campi predefiniti
+        (Codice Fiscale, Partita IVA, PD External ID, Codice POD, Codice PDR, Data Firma).</p>
+      <div id="advancedFiltersList" class="checkbox-grid"></div>
+      <div class="form-actions">
+        <button class="ghost" id="advancedFiltersReset" type="button">↺ Ripristina predefiniti</button>
+        <button class="ghost" id="advancedFiltersCancel" type="button">Annulla</button>
+        <button class="primary" id="advancedFiltersApply" type="button">Applica</button>
       </div>
     </div>
   </div>

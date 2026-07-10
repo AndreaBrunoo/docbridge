@@ -792,23 +792,19 @@ function deleteStaging(id, type) {
   toast("Record rimosso dallo staging");
 }
 
-const searchFieldPlaceholders = {
-  "": "Cerca per nome cliente, POD o ID...",
-  cliente_codice_fiscale: "Cerca per codice fiscale...",
-  cliente_partita_iva: "Cerca per partita IVA...",
-  pde_external_id: "Cerca per PD External ID...",
-  codice_pod: "Cerca per codice POD...",
-  codice_pdr: "Cerca per codice PDR...",
-  data_firma_contratto: "Cerca per data firma (AAAA-MM-GG)...",
-};
-
 function renderConsultazione() {
-  const q = document.getElementById("docSearch").value.toLowerCase();
-  const comm = document.getElementById("docCommodity").value;
-  const searchField = document.getElementById("docSearchField").value; // "" = tutti i campi
+  const q = document.getElementById("docSearch").value.toLowerCase().trim();
+  // Campi attivi per il filtro: se l'utente non ha applicato filtri
+  // avanzati personalizzati, usiamo i 6 campi "hash" di default.
+  const activeFields = _activeFilterFields || DEFAULT_HASH_FIELDS;
   const b = document.getElementById("docTableBody");
   if (!b) return;
   b.innerHTML = "";
+
+  // Badge filtri attivi: visibile solo se l'utente ha personalizzato i
+  // campi rispetto al default. Mostra i label dei campi + una × per
+  // tornare al default con un click.
+  renderActiveFiltersBar();
 
   const matchesOnly = state.matched.map((d) => ({
     d,
@@ -816,20 +812,18 @@ function renderConsultazione() {
   }));
 
   let count = 0;
-  
-  // Aggiunto l'indice "i" nel forEach se ti serve per data-idx
-  matchesOnly.forEach(({ d, emoji }, i) => { 
-    if (comm && d.commodity !== comm) return;
 
+  // Aggiunto l'indice "i" nel forEach se ti serve per data-idx
+  matchesOnly.forEach(({ d, emoji }, i) => {
     if (q) {
-      if (searchField) {
-        const fieldValue = (d[searchField] || "").toString().toLowerCase();
-        if (!fieldValue.includes(q)) return;
-      } else {
-        const allValues = FIELDS.map(([key]) => d[key]).concat([d.id]);
-        const matchStr = allValues.filter(Boolean).join(" ").toLowerCase();
-        if (!matchStr.includes(q)) return;
-      }
+      // "Ricerca hash": il record passa se ALMENO UNO dei campi attivi
+      // contiene la query (OR logico). Sostituisce sia il vecchio filtro
+      // per singolo campo (docSearchField) sia quello per commodity.
+      const hit = activeFields.some((field) => {
+        const v = (d[field] || "").toString().toLowerCase();
+        return v.includes(q);
+      });
+      if (!hit) return;
     }
 
     count++;
@@ -838,12 +832,12 @@ function renderConsultazione() {
     const userId = d.matched_by || "system";
     const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
     const provenanceLabel = getRecordProvenanceLabel(d);
-    
+
     // 1. Dichiariamo "eye" fuori con "let" così è accessibile ovunque nel ciclo
     let eye = "******"; // Default per chi non è DPO
-    
+
     // Recuperiamo l'utente CORRENTE loggato (adatta "state.currentUser" al tuo progetto)
-    const currentUser = state.currentUser; 
+    const currentUser = state.currentUser;
     const isCurrentUserDpo = currentUser && currentUser.role === "DPO";
 
     if (isCurrentUserDpo) {
@@ -881,21 +875,21 @@ tr.onclick = async (e) => { // <-- Aggiunto "async" qui
       }
       // 2. Gestione Occhietto (DPO o span)
       const eyeElement = e.target.classList.contains('event-eye') ? e.target : e.target.closest('.event-eye');
-      
+
       if (eyeElement) {
         e.stopPropagation(); // Ferma il click ed evita l'apertura del drawer
-        
+
         try {
           // Cambiamo temporaneamente l'icona in una clessidra o animazione di caricamento
           eyeElement.innerHTML = "⏳";
-          
+
           // Attendiamo il nome utente restituito dalla funzione
-          const usernameRivelato = await revealUser(u.id); 
-          
+          const usernameRivelato = await revealUser(u.id);
+
           if (usernameRivelato) {
             // Prendiamo il <td> dell'occhio (è la sesta colonna, quindi indice 5 del tr)
-            const tdOcchio = tr.cells[5]; 
-            
+            const tdOcchio = tr.cells[5];
+
             // Sostituiamo tutto il contenuto della cella con il nome utente reale
             tdOcchio.innerHTML = `<span style="font-weight: 500; color: #2c3e50;">👁️ ${escapeHtml(usernameRivelato)}</span>`;
           } else {
@@ -916,8 +910,60 @@ tr.onclick = async (e) => { // <-- Aggiunto "async" qui
   });
 
   if (count === 0)
-    b.innerHTML = '<tr><td colspan="7" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>'; 
+    b.innerHTML = '<tr><td colspan="7" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>';
     // Nota: colspan modificato a 7 perché hai 7 tag <td> nella riga sopra
+}
+
+// Renderizza il badge "Filtri attivi: …" sopra la tabella, visibile solo
+// quando l'utente ha personalizzato i campi rispetto al default. Cliccando
+// sulla × del badge (o sull'ultima pill "Ripristina") si torna ai 6 campi
+// predefiniti.
+function renderActiveFiltersBar() {
+  const bar = document.getElementById("activeFiltersBar");
+  if (!bar) return;
+  const active = _activeFilterFields;
+  // Caso 1: filtri default (mai personalizzati) → niente badge.
+  // Caso 2: filtri personalizzati = identici al set di default
+  // (impossibile col flusso attuale: applyAdvancedFilters converte questa
+  // condizione in `null`, ma lo gestiamo comunque per sicurezza).
+  const isDefault =
+    !active ||
+    (active.length === DEFAULT_HASH_FIELDS.length &&
+      DEFAULT_HASH_FIELDS.every((k) => active.includes(k)));
+  if (isDefault) {
+    bar.hidden = true;
+    bar.innerHTML = "";
+    return;
+  }
+  const labels = active
+    .map((key) => {
+      const found = FIELDS.find(([k]) => k === key);
+      return found ? found[1] : key;
+    })
+    .filter(Boolean);
+  bar.hidden = false;
+  bar.innerHTML = `
+    <small>Filtri attivi:</small>
+    ${labels
+      .map(
+        (lbl) =>
+          `<span class="active-filters-pill">${escapeHtml(lbl)}</span>`
+      )
+      .join("")}
+    <button type="button" class="active-filters-pill" id="resetActiveFiltersBtn"
+      title="Torna ai campi predefiniti (Codice Fiscale, Partita IVA, PD External ID, Codice POD, Codice PDR, Data Firma)">
+      ↺ Ripristina predefiniti
+    </button>
+  `;
+  const resetBtn = document.getElementById("resetActiveFiltersBtn");
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      _activeFilterFields = null;
+      _advancedFiltersSnapshot = null;
+      render();
+      toast("Filtri ripristinati ai campi predefiniti");
+    };
+  }
 }
 
 // Area Staging: gestione delle code di contratti Uno Energy e Postel, con selezione e confronto manuale.
@@ -1109,6 +1155,35 @@ function manualMatch(u, p) {
 // ha momentaneamente "svelato" con il tasto occhio in questa sessione di
 // rendering. Si resetta ad ogni logout/login (privacy by default).
 let _revealedEventIdx = new Set();
+
+// ============================================================
+// Filtri Avanzati — Consultazione
+// ============================================================
+// Campi su cui la barra di ricerca "hash" filtra di default (senza filtri
+// avanzati applicati). Sono esattamente i campi che la vecchia select
+// "Cerca per campo specifico" offriva: Codice Fiscale, Partita IVA, PD
+// External ID, Codice POD, Codice PDR, Data Firma. Una ricerca con la
+// query vuota restituisce tutto (la query è opzionale, i filtri no).
+const DEFAULT_HASH_FIELDS = [
+  "cliente_codice_fiscale",
+  "cliente_partita_iva",
+  "pde_external_id",
+  "codice_pod",
+  "codice_pdr",
+  "data_firma_contratto",
+];
+
+// Set corrente dei campi attivi sui quali filtrare la ricerca in
+// Consultazione. `null` → uso DEFAULT_HASH_FIELDS. In-memory: si resetta
+// al reload della pagina (è una preferenza di vista, non un dato
+// applicativo da persistere in localStorage).
+let _activeFilterFields = null;
+
+// Snapshot dei campi attivi al momento dell'apertura del popup Filtri
+// Avanzati: serve al pulsante "Annulla" per ripristinare la selezione
+// precedente senza toccare `_activeFilterFields`. `null` quando il popup
+// non è aperto.
+let _advancedFiltersSnapshot = null;
 
 function renderEvents() {
   const el = document.getElementById("timelineEvents");
@@ -1362,7 +1437,14 @@ function closeAllRoleDropdowns() {
 }
 document.addEventListener("click", closeAllRoleDropdowns);
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closeAllRoleDropdowns();
+  if (e.key !== "Escape") return;
+  // Chiudi prima il popup Filtri Avanzati se aperto (ha priorità sul
+  // dropdown utenti perché è un overlay modale che blocca l'interazione).
+  if (document.getElementById("modalAdvancedFilters")?.classList.contains("open")) {
+    cancelAdvancedFilters();
+    return;
+  }
+  closeAllRoleDropdowns();
 });
 
 function escapeHtml(v) {
@@ -1490,6 +1572,79 @@ function closeModal() {
   _reconSnapshot = null;
   const footer = document.getElementById("reconFooter");
   if (footer) footer.style.display = "none";
+}
+
+// ============================================================
+// Filtri Avanzati (Consultazione) — gestione popup
+// ============================================================
+// Apre il popup Filtri Avanzati e renderizza la lista di checkbox a
+// partire dall'array FIELDS. Le checkbox pre-spuntabili corrispondono a
+// _activeFilterFields (o a DEFAULT_HASH_FIELDS se l'utente non ha mai
+// personalizzato). Salva uno snapshot in _advancedFiltersSnapshot per
+// supportare il tasto "Annulla".
+function openAdvancedFilters() {
+  const modal = document.getElementById("modalAdvancedFilters");
+  const list = document.getElementById("advancedFiltersList");
+  if (!modal || !list) return;
+  const current = _activeFilterFields || DEFAULT_HASH_FIELDS;
+  _advancedFiltersSnapshot = new Set(current);
+  list.innerHTML = FIELDS.map(
+    ([key, label]) => `
+      <label class="checkbox-row">
+        <input type="checkbox" data-field="${escapeHtml(key)}" ${current.includes(key) ? "checked" : ""} />
+        <span>${escapeHtml(label)}</span>
+      </label>
+    `
+  ).join("");
+  modal.classList.add("open");
+}
+
+// Legge le checkbox spuntate nel popup e applica il filtro.
+// Se l'utente ha spuntato esattamente i 6 campi di default (stesso set,
+// stesso ordine) → annulliamo la personalizzazione e torniamo a
+// _activeFilterFields = null (= usa DEFAULT_HASH_FIELDS), in modo che il
+// badge filtri attivi scompaia.
+function applyAdvancedFilters() {
+  const list = document.getElementById("advancedFiltersList");
+  if (!list) return;
+  const checked = Array.from(list.querySelectorAll("input:checked"))
+    .map((el) => el.getAttribute("data-field"))
+    .filter(Boolean);
+  const isDefault =
+    checked.length === DEFAULT_HASH_FIELDS.length &&
+    DEFAULT_HASH_FIELDS.every((k) => checked.includes(k));
+  _activeFilterFields = isDefault ? null : checked;
+  _advancedFiltersSnapshot = null;
+  document.getElementById("modalAdvancedFilters")?.classList.remove("open");
+  render();
+  toast(
+    isDefault
+      ? "Filtri ripristinati ai campi predefiniti"
+      : `Filtri applicati su ${checked.length} campo${checked.length === 1 ? "" : "i"}`
+  );
+}
+
+// Chiude il popup senza applicare le modifiche fatte dall'utente.
+// Ripristina _activeFilterFields allo snapshot catturato all'apertura.
+// Le modifiche alle checkbox sono solo visive, non hanno toccato lo
+// stato persistente, quindi basta azzerare lo snapshot.
+function cancelAdvancedFilters() {
+  // Lo snapshot non viene riapplicato: _activeFilterFields non è mai
+  // stato modificato durante l'editing, quindi "Annulla" significa solo
+  // "chiudi senza salvare".
+  _advancedFiltersSnapshot = null;
+  document.getElementById("modalAdvancedFilters")?.classList.remove("open");
+}
+
+// Risposta al tasto "Ripristina predefiniti" dentro il popup: ri-spunta
+// le 6 checkbox di default e deseleziona tutte le altre. Non chiude il
+// popup, l'utente deve ancora premere "Applica" per confermare.
+function resetAdvancedFiltersToDefault() {
+  const list = document.getElementById("advancedFiltersList");
+  if (!list) return;
+  list.querySelectorAll("input[type=checkbox]").forEach((el) => {
+    el.checked = DEFAULT_HASH_FIELDS.includes(el.getAttribute("data-field"));
+  });
 }
 
 function getManualRecord() {
@@ -2122,16 +2277,20 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   document.getElementById("btnStickyAutoMatch").onclick = autoMatchSelectedPair;
 
-  ["docSearch", "docCommodity", "docSearchField", "stagingSearch"].forEach((idv) => {
-    document.getElementById(idv)?.addEventListener("input", render);
-  });
+  // Barra di ricerca Consultazione: filtro live. Il popup "Filtri
+  // Avanzati" gestisce la multi-selezione dei campi in modo separato
+  // (vedi openAdvancedFilters/applyAdvancedFilters).
+  document.getElementById("docSearch")?.addEventListener("input", render);
+  document.getElementById("stagingSearch")?.addEventListener("input", render);
 
-  // Aggiorna il placeholder della barra di ricerca in base al campo scelto nel menù a tendina
-  document.getElementById("docSearchField")?.addEventListener("change", (e) => {
-    const docSearchInput = document.getElementById("docSearch");
-    if (docSearchInput) {
-      docSearchInput.placeholder = searchFieldPlaceholders[e.target.value];
-    }
+  // Popup Filtri Avanzati
+  document.getElementById("btnAdvancedFilters")?.addEventListener("click", openAdvancedFilters);
+  document.getElementById("advancedFiltersApply")?.addEventListener("click", applyAdvancedFilters);
+  document.getElementById("advancedFiltersCancel")?.addEventListener("click", cancelAdvancedFilters);
+  document.getElementById("advancedFiltersReset")?.addEventListener("click", resetAdvancedFiltersToDefault);
+  // Chiudi cliccando sul backdrop del modal Filtri Avanzati (= Annulla).
+  document.getElementById("modalAdvancedFilters")?.addEventListener("click", (e) => {
+    if (e.target.id === "modalAdvancedFilters") cancelAdvancedFilters();
   });
 
   function syncManualCommodityFields(isGas, clearValues) {
