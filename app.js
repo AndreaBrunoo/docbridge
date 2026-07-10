@@ -821,6 +821,29 @@ function renderConsultazione() {
       if (!hit) return;
     }
 
+    // Filtri avanzati: tutti i filtri impostati devono corrispondere (AND logico)
+    if (Object.keys(_advancedFilterValues).length > 0) {
+      for (const [field, value] of Object.entries(_advancedFilterValues)) {
+        if (!value) continue;
+        
+        if (field.includes("data_")) {
+          // Gestione campi data con range
+          const [da, a] = value.split("|");
+          const recordDate = d[field];
+          if (recordDate) {
+            const recordDateStr = recordDate.toString();
+            if (da && recordDateStr < da) return;
+            if (a && recordDateStr > a) return;
+          }
+        } else {
+          // Gestione campi text e select: match parziale (case-insensitive)
+          const recordValue = (d[field] || "").toString().toLowerCase();
+          const searchValue = value.toLowerCase();
+          if (!recordValue.includes(searchValue)) return;
+        }
+      }
+    }
+
     count++;
     const u = state.users.find((x) => x.id === d.matched_by);
     const tr = document.createElement("tr");
@@ -1176,6 +1199,59 @@ const DEFAULT_HASH_FIELDS = [
   "data_firma_contratto",
 ];
 
+// Mappa dei tipi di campo per il form dei filtri avanzati
+const FIELD_TYPES = {
+  "cliente_nome_cognome": { type: "text", placeholder: "Inserisci nome o cognome" },
+  "cliente_codice_fiscale": { type: "text", placeholder: "Inserisci Codice fiscale" },
+  "cliente_partita_iva": { type: "text", placeholder: "Inserisci Partita IVA" },
+  "data_firma_contratto": { type: "date" },
+  "codice_pod": { type: "text", placeholder: "Inserisci Codice POD" },
+  "codice_pdr": { type: "text", placeholder: "Inserisci Codice PDR" },
+  "contract_account": { type: "text", placeholder: "Inserisci Contract account" },
+  "pde_external_id": { type: "text", placeholder: "Inserisci PD External ID" },
+  "commodity": { type: "select", options: [
+    { value: "", label: "Seleziona commodity" },
+    { value: "Energia Elettrica", label: "Energia Elettrica" },
+    { value: "Gas naturale", label: "Gas naturale" }
+  ]},
+  "cliente_codice_identificativo_univoco": { type: "text", placeholder: "Inserisci Codice identificativo" },
+  "cliente_record_type_testuale": { type: "select", options: [
+    { value: "", label: "Seleziona record type" },
+    { value: "Retail", label: "Retail" },
+    { value: "Business", label: "Business" }
+  ]},
+  "opportunita_tipo_record": { type: "select", options: [
+    { value: "", label: "Seleziona tipo opportunità" },
+    { value: "Switch", label: "Switch" },
+    { value: "Nuova attivazione", label: "Nuova attivazione" }
+  ]},
+  "opportunita_id": { type: "text", placeholder: "Inserisci ID opportunità" },
+  "id_forniture": { type: "text", placeholder: "Inserisci ID forniture" },
+  "opportunita_nome": { type: "text", placeholder: "Inserisci nome opportunità" },
+  "opportunita_commodity": { type: "select", options: [
+    { value: "", label: "Seleziona commodity opportunità" },
+    { value: "Power", label: "EE" },
+    { value: "Gas", label: "GA" }
+  ]},
+  "codice_prodotto_ee": { type: "select", options: [
+    { value: "", label: "Seleziona prodotto EE" },
+    { value: "Prodotto EE 1", label: "Prodotto EE 1" },
+    { value: "Prodotto EE 2", label: "Prodotto EE 2" }
+  ]},
+  "codice_prodotto_gas": { type: "select", options: [
+    { value: "", label: "Seleziona prodotto GAS" },
+    { value: "Prodotto GAS 1", label: "Prodotto GAS 1" },
+    { value: "Prodotto GAS 2", label: "Prodotto GAS 2" }
+  ]},
+  "stato": { type: "select", options: [
+    { value: "", label: "Seleziona stato" },
+    { value: "Attivo", label: "Attivo" },
+    { value: "Sospeso", label: "Sospeso" },
+    { value: "Chiuso", label: "Chiuso" }
+  ]},
+  "data_certificazione": { type: "date" }
+};
+
 // Set corrente dei campi attivi sui quali filtrare la ricerca in
 // Consultazione. `null` → uso DEFAULT_HASH_FIELDS. In-memory: si resetta
 // al reload della pagina (è una preferenza di vista, non un dato
@@ -1187,6 +1263,9 @@ let _activeFilterFields = null;
 // precedente senza toccare `_activeFilterFields`. `null` quando il popup
 // non è aperto.
 let _advancedFiltersSnapshot = null;
+
+// Valori correnti dei filtri avanzati per la ricerca
+let _advancedFilterValues = {};
 
 function renderEvents() {
   const el = document.getElementById("timelineEvents");
@@ -1587,74 +1666,149 @@ function closeModal() {
 // ============================================================
 // Filtri Avanzati (Consultazione) — gestione popup
 // ============================================================
-// Apre il popup Filtri Avanzati e renderizza la lista di checkbox a
-// partire dall'array FIELDS. Le checkbox pre-spuntabili corrispondono a
-// _activeFilterFields (o a DEFAULT_HASH_FIELDS se l'utente non ha mai
-// personalizzato). Salva uno snapshot in _advancedFiltersSnapshot per
-// supportare il tasto "Annulla".
+// Apre il popup Filtri Avanzati e renderizza il form dei campi
+// partendo dall'array FIELDS. Salva uno snapshot in _advancedFiltersSnapshot
+// per supportare il tasto "Annulla".
 function openAdvancedFilters() {
   const modal = document.getElementById("modalAdvancedFilters");
   const list = document.getElementById("advancedFiltersList");
   if (!modal || !list) return;
-  const current = _activeFilterFields || DEFAULT_HASH_FIELDS;
-  _advancedFiltersSnapshot = new Set(current);
-  list.innerHTML = FIELDS.map(
-    ([key, label]) => `
-      <label class="checkbox-row">
-        <input type="checkbox" data-field="${escapeHtml(key)}" ${current.includes(key) ? "checked" : ""} />
-        <span>${escapeHtml(label)}</span>
-      </label>
-    `
-  ).join("");
+  
+  _advancedFiltersSnapshot = { ..._advancedFilterValues };
+  
+  // Generiamo il form con i campi
+  list.innerHTML = FIELDS.map(([key, label]) => {
+    const fieldConfig = FIELD_TYPES[key];
+    if (!fieldConfig) return "";
+    
+    const value = _advancedFilterValues[key] || "";
+    
+    if (fieldConfig.type === "text") {
+      return `
+        <div class="advanced-filter-field">
+          <label for="filter-${key}">${escapeHtml(label)}</label>
+          <input 
+            type="text" 
+            id="filter-${key}" 
+            name="${key}"
+            data-field="${escapeHtml(key)}" 
+            placeholder="${fieldConfig.placeholder || ""}"
+            value="${escapeHtml(value)}"
+          />
+        </div>
+      `;
+    } else if (fieldConfig.type === "date") {
+      return `
+        <div class="advanced-filter-field">
+          <label>${escapeHtml(label)}</label>
+          <div class="advanced-filter-date-range">
+            <div class="date-input-wrapper">
+              <span class="date-label-inline">Da</span>
+              <input 
+                type="date" 
+                name="${key}-da"
+                data-field="${escapeHtml(key)}"
+                data-range="da"
+                value="${escapeHtml(value.split('|')[0] || '')}"
+              />
+            </div>
+            <div class="date-input-wrapper">
+              <span class="date-label-inline">A</span>
+              <input 
+                type="date" 
+                name="${key}-a"
+                data-field="${escapeHtml(key)}"
+                data-range="a"
+                value="${escapeHtml(value.split('|')[1] || '')}"
+              />
+            </div>
+          </div>
+        </div>
+      `;
+    } else if (fieldConfig.type === "select") {
+      const options = fieldConfig.options.map(opt => 
+        `<option value="${escapeHtml(opt.value)}" ${value === opt.value ? "selected" : ""}>${escapeHtml(opt.label)}</option>`
+      ).join("");
+      return `
+        <div class="advanced-filter-field">
+          <label for="filter-${key}">${escapeHtml(label)}</label>
+          <select 
+            id="filter-${key}" 
+            name="${key}"
+            data-field="${escapeHtml(key)}"
+          >
+            ${options}
+          </select>
+        </div>
+      `;
+    }
+    return "";
+  }).join("");
+  
   modal.classList.add("open");
 }
 
-// Legge le checkbox spuntate nel popup e applica il filtro.
-// Se l'utente ha spuntato esattamente i 6 campi di default (stesso set,
-// stesso ordine) → annulliamo la personalizzazione e torniamo a
-// _activeFilterFields = null (= usa DEFAULT_HASH_FIELDS), in modo che il
-// badge filtri attivi scompaia.
+// Legge i campi del form e applica i filtri.
 function applyAdvancedFilters() {
   const list = document.getElementById("advancedFiltersList");
   if (!list) return;
-  const checked = Array.from(list.querySelectorAll("input:checked"))
-    .map((el) => el.getAttribute("data-field"))
-    .filter(Boolean);
-  const isDefault =
-    checked.length === DEFAULT_HASH_FIELDS.length &&
-    DEFAULT_HASH_FIELDS.every((k) => checked.includes(k));
-  _activeFilterFields = isDefault ? null : checked;
+  
+  const newValues = {};
+  
+  // Raccogliere i valori di tutti i campi
+  FIELDS.forEach(([key]) => {
+    const fieldConfig = FIELD_TYPES[key];
+    if (!fieldConfig) return;
+    
+    if (fieldConfig.type === "date") {
+      const da = list.querySelector(`input[name="${key}-da"]`)?.value || "";
+      const a = list.querySelector(`input[name="${key}-a"]`)?.value || "";
+      if (da || a) {
+        newValues[key] = `${da}|${a}`;
+      }
+    } else {
+      const el = list.querySelector(`input[name="${key}"], select[name="${key}"]`);
+      const val = el?.value || "";
+      if (val) {
+        newValues[key] = val;
+      }
+    }
+  });
+  
+  _advancedFilterValues = newValues;
   _advancedFiltersSnapshot = null;
   document.getElementById("modalAdvancedFilters")?.classList.remove("open");
   render();
+  
+  const filterCount = Object.keys(newValues).length;
   toast(
-    isDefault
-      ? "Filtri ripristinati ai campi predefiniti"
-      : `Filtri applicati su ${checked.length} campo${checked.length === 1 ? "" : "i"}`
+    filterCount === 0
+      ? "Filtri azzurati"
+      : `Filtri applicati su ${filterCount} campo${filterCount === 1 ? "" : "i"}`
   );
 }
 
 // Chiude il popup senza applicare le modifiche fatte dall'utente.
-// Ripristina _activeFilterFields allo snapshot catturato all'apertura.
-// Le modifiche alle checkbox sono solo visive, non hanno toccato lo
-// stato persistente, quindi basta azzerare lo snapshot.
 function cancelAdvancedFilters() {
-  // Lo snapshot non viene riapplicato: _activeFilterFields non è mai
-  // stato modificato durante l'editing, quindi "Annulla" significa solo
-  // "chiudi senza salvare".
+  _advancedFilterValues = _advancedFiltersSnapshot || {};
   _advancedFiltersSnapshot = null;
   document.getElementById("modalAdvancedFilters")?.classList.remove("open");
 }
 
-// Risposta al tasto "Ripristina predefiniti" dentro il popup: ri-spunta
-// le 6 checkbox di default e deseleziona tutte le altre. Non chiude il
-// popup, l'utente deve ancora premere "Applica" per confermare.
+// Resetta tutti i campi del form
 function resetAdvancedFiltersToDefault() {
   const list = document.getElementById("advancedFiltersList");
   if (!list) return;
-  list.querySelectorAll("input[type=checkbox]").forEach((el) => {
-    el.checked = DEFAULT_HASH_FIELDS.includes(el.getAttribute("data-field"));
+  
+  list.querySelectorAll("input[type='text'], input[type='date'], select").forEach((el) => {
+    if (el.type === "text" || el.type === "date") {
+      el.value = "";
+    } else if (el.tagName === "SELECT") {
+      el.value = "";
+    }
   });
+  
+  _advancedFilterValues = {};
 }
 
 function getManualRecord() {
@@ -2298,6 +2452,7 @@ window.addEventListener("DOMContentLoaded", () => {
   document.getElementById("advancedFiltersApply")?.addEventListener("click", applyAdvancedFilters);
   document.getElementById("advancedFiltersCancel")?.addEventListener("click", cancelAdvancedFilters);
   document.getElementById("advancedFiltersReset")?.addEventListener("click", resetAdvancedFiltersToDefault);
+  document.getElementById("advancedFiltersCloseBtn")?.addEventListener("click", cancelAdvancedFilters);
   // Chiudi cliccando sul backdrop del modal Filtri Avanzati (= Annulla).
   document.getElementById("modalAdvancedFilters")?.addEventListener("click", (e) => {
     if (e.target.id === "modalAdvancedFilters") cancelAdvancedFilters();

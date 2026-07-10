@@ -297,24 +297,6 @@
         </div>
       </section>
 
-      <section id="api" class="view">
-        <div class="grid two">
-          <div class="card code-card">
-            <h3>API simulate</h3>
-            <pre>
-POST /api/v1/ingest/unoenergy
-GET  /api/v1/documents
-GET  /api/v1/staging/queuesigned</pre>
-          </div>
-          <div class="card code-card">
-            <h3>CLI staging</h3>
-            <pre>
-db-queue list unoenergy
-db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
-          </div>
-        </div>
-      </section>
-
       <section id="users" class="view">
         <div class="card">
           <div class="card-head">
@@ -442,16 +424,17 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
   </div>
 
   <div id="modalAdvancedFilters" class="modal">
-    <div class="modal-panel">
-      <h3>Filtri Avanzati</h3>
-      <p class="modal-hint">Seleziona uno o più campi su cui filtrare la ricerca nella
-        Consultazione. Se nessun campo è selezionato, la ricerca usa i 6 campi predefiniti
-        (Codice Fiscale, Partita IVA, PD External ID, Codice POD, Codice PDR, Data Firma).</p>
-      <div id="advancedFiltersList" class="checkbox-grid"></div>
+    <div class="modal-panel modal-wide">
+      <div class="modal-header">
+        <h3>Filtri Avanzati</h3>
+        <button class="modal-close-btn" id="advancedFiltersCloseBtn" type="button">×</button>
+      </div>
+      <p class="modal-hint">Imposta i criteri di ricerca per filtrare i risultati della consultazione. Puoi compilare uno o più campi.</p>
+      <div id="advancedFiltersList" class="advanced-filters-grid"></div>
       <div class="form-actions">
-        <button class="ghost" id="advancedFiltersReset" type="button">↺ Ripristina predefiniti</button>
+        <button class="ghost" id="advancedFiltersReset" type="button">↺ Ripristina filtri</button>
         <button class="ghost" id="advancedFiltersCancel" type="button">Annulla</button>
-        <button class="primary" id="advancedFiltersApply" type="button">Applica</button>
+        <button class="primary" id="advancedFiltersApply" type="button">🔍 Applica filtri</button>
       </div>
     </div>
   </div>
