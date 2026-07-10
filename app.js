@@ -641,35 +641,20 @@ function handleLogout() {
 function showLoginOverlay() {
   const overlay = document.getElementById("loginOverlay");
   if (!overlay) return;
-  // Popola la lista utenti disponibili
-  const list = document.getElementById("loginUserList");
-  if (list) {
-    list.innerHTML = state.users.map((u) => `
-      <button type="button" class="login-user" data-user-id="${u.id}">
-        <span class="login-user-avatar">${u.username.charAt(0).toUpperCase()}</span>
-        <span class="login-user-meta">
-          <b>${escapeHtml(u.username)}</b>
-          <small>${escapeHtml(u.role)}</small>
-        </span>
-      </button>
-    `).join("");
-    list.querySelectorAll(".login-user").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        list.querySelectorAll(".login-user").forEach((b) => b.classList.remove("selected"));
-        btn.classList.add("selected");
-        const pwd = document.getElementById("loginPassword");
-        if (pwd) {
-          pwd.value = "demo";
-          pwd.focus();
-          pwd.select();
-        }
-      });
-    });
+
+  // Resetta i campi di input ad ogni apertura dell'overlay
+  const usernameInput = document.getElementById("loginUsername");
+  if (usernameInput) {
+    usernameInput.value = "";
+    usernameInput.focus();
   }
-  const pwd = document.getElementById("loginPassword");
-  if (pwd) pwd.value = "demo";
+  
+  const pwdInput = document.getElementById("loginPassword");
+  if (pwdInput) pwdInput.value = "demo"; // Mantiene la password precompilata della demo
+
   const err = document.getElementById("loginError");
   if (err) err.textContent = "";
+
   overlay.classList.add("open");
   document.body.classList.add("login-open");
 }
@@ -683,20 +668,33 @@ function hideLoginOverlay() {
 
 function handleLoginSubmit(e) {
   if (e) e.preventDefault();
-  const selected = document.querySelector(".login-user.selected");
+  
+  const usernameInput = document.getElementById("loginUsername");
   const pwdInput = document.getElementById("loginPassword");
   const err = document.getElementById("loginError");
-  if (!selected) {
-    if (err) err.textContent = "Seleziona un utente";
+  
+  const username = usernameInput?.value.trim() || "";
+  const password = pwdInput?.value || "";
+
+  if (!username) {
+    if (err) err.textContent = "Inserisci l'username";
     return;
   }
-  const userId = selected.getAttribute("data-user-id");
-  const password = pwdInput?.value || "";
-  const result = login(userId, password);
+
+  // Cerca l'utente nell'array DEMO_USERS tramite l'username inserito
+  const user = findUserByUsername(username);
+  if (!user) {
+    if (err) err.textContent = "Utente non trovato";
+    return;
+  }
+
+  // Effettua il tentativo di login reale usando la funzione esistente tramite l'ID trovato
+  const result = login(user.id, password);
   if (!result.ok) {
     if (err) err.textContent = result.error;
     return;
   }
+
   hideLoginOverlay();
   render();
   toast(`Benvenuto, ${result.user.username} (${result.user.role})`);

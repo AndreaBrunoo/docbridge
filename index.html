@@ -349,22 +349,32 @@ db-queue match &lt;id_postel&gt; &lt;id_uno&gt;</pre>
   </div>
 
   <div id="loginOverlay" class="login-overlay">
-    <form id="loginForm" class="login-panel" onsubmit="return false;">
+ <form id="loginForm" class="login-panel" onsubmit="return false;">
       <div class="login-brand">
           <div class="brand-mark">
             <img style="width: 100%; height: auto;" src="images/unoenergy-saving-solutions.png" alt="DocBridge">
           </div>
       </div>
-  <p class="login-hint">Seleziona un utente demo per accedere.</p>
-  <div id="loginUserList" class="login-user-list"></div>
-  <div class="field">
-    <label for="loginPassword">Password</label>
-    <input type="password" id="loginPassword" name="password" autocomplete="off" />
-  </div>
-  <div id="loginError" class="login-error"></div>
-  <button type="submit" id="loginSubmitBtn" class="primary full">Accedi</button>
+  <p class="login-hint">Inserisci le tue credenziali demo per accedere(es. Mario, Luigi, Margherita)</p>
+  
+  <form id="loginForm" onsubmit="handleLoginSubmit(e)">
+    <div class="field" style="margin-bottom: 14px;">
+      <label for="loginUsername">Username</label>
+      <input type="text" id="loginUsername" placeholder="Inserisci username..." required autocomplete="username">
+    </div>
+    
+    <div class="field" style="margin-bottom: 14px;">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Inserisci password..." required autocomplete="current-password">
+    </div>
+    
+    <div id="loginError" class="login-error"></div>
+    
+    <div class="form-actions" style="border-top: none; padding-top: 0;">
+      <button type="submit" class="primary full">Accedi</button>
+    </div>
   </form>
-  </div>
+</div>
 
   <div id="drawer" class="drawer">
   <div class="drawer-panel">
