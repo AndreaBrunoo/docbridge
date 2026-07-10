@@ -405,6 +405,14 @@ function finalizeMatch(u, p, type) {
     // generati automaticamente dal flusso (es. ingest Postel con ID valido)
     // quando l'utente non ha eseguito un'azione esplicita.
     matched_by: state.currentUser?.id || "system",
+    // Flag di anomalia calcolati una volta e "congelati" sul record: così
+    // il pannello Anomalie Rilevate può sempre ricontarli a partire dai
+    // record realmente presenti in state.matched, invece di tenere un
+    // contatore separato che rischia di disallinearsi quando i record
+    // vengono eliminati singolarmente.
+    anom_commodity: (u.commodity || "") !== (p.commodity || ""),
+    anom_name: (u.cliente_nome_cognome || "").trim().toLowerCase() !== (p.cliente_nome_cognome || "").trim().toLowerCase(),
+    anom_pod: !!((u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) || (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr)),
   };
 }
 
@@ -659,33 +667,30 @@ function renderDashboard() {
   let realAutoCount = 0;
   let realManualCount = 0;
   state.matched.forEach(item => {
-    if (item.tipo_match === "Automatico") realAutoCount++;
+    // Include anche le varianti come "Automatico (da XML con ID valido)":
+    // sono comunque match automatici e vanno contati come tali (coerenza
+    // con l'emoji 🤖 già usata in Consultazione, vedi renderConsultazione).
+    if (item.tipo_match && item.tipo_match.startsWith("Automatico")) realAutoCount++;
     if (item.tipo_match === "Manuale") realManualCount++;
   });
 
-  // Calcoliamo le anomalie reali basandoci solo sui contratti attualmente abbinati manualmente
+  // Calcoliamo le anomalie reali basandoci solo sui contratti attualmente
+  // abbinati manualmente, leggendo i flag salvati sul record da
+  // finalizeMatch(). Così il totale è sempre coerente con ciò che c'è
+  // davvero in state.matched, anche se si eliminano singoli record.
   let realAnomComm = 0;
   let realAnomPod = 0;
   let realAnomName = 0;
 
   state.matched.forEach(item => {
     if (item.tipo_match === "Manuale") {
-      // Recuperiamo (se ancora presenti nelle code originarie o tramite simulazione di confronto) 
-      // i pattern di errore registrati per ricostruire lo storico dinamico.
-      // Se vuoi che rimangano persistenti legati al record, incrementiamo in base ai flag del record.
-      // Per una consistenza perfetta con la funzione manualMatch, usiamo le metriche reali aggregate:
+      if (item.anom_commodity) realAnomComm++;
+      if (item.anom_pod) realAnomPod++;
+      if (item.anom_name) realAnomName++;
     }
   });
 
-  // Manteniamo le metriche di anomalia collegate al contatore di sessione se non salvate nei record,
-  // ma se si azzerano i match manuali azzeriamo anche le relative anomalie visive!
-  if (realManualCount === 0) {
-    state.metrics.anom.commodity = 0;
-    state.metrics.anom.pod = 0;
-    state.metrics.anom.name = 0;
-  }
-
-  const totalAnomalies = Object.values(state.metrics.anom).reduce((a, b) => a + b, 0);
+  const totalAnomalies = realAnomComm + realAnomPod + realAnomName;
 
   // Aggiorniamo i testi dei KPI a schermo
   document.getElementById("kpiAuto").innerText = realAutoCount;
@@ -696,14 +701,14 @@ function renderDashboard() {
   // 2. RENDER GRAFICO ANOMALIE RILEVATE (In alto, a tutta larghezza)
   const aChart = document.getElementById("anomChart");
   if (aChart) {
-    const pComm = totalAnomalies > 0 ? Math.round((state.metrics.anom.commodity / totalAnomalies) * 100) : 0;
-    const pPod = totalAnomalies > 0 ? Math.round((state.metrics.anom.pod / totalAnomalies) * 100) : 0;
-    const pName = totalAnomalies > 0 ? Math.round((state.metrics.anom.name / totalAnomalies) * 100) : 0;
+    const pComm = totalAnomalies > 0 ? Math.round((realAnomComm / totalAnomalies) * 100) : 0;
+    const pPod = totalAnomalies > 0 ? Math.round((realAnomPod / totalAnomalies) * 100) : 0;
+    const pName = totalAnomalies > 0 ? Math.round((realAnomName / totalAnomalies) * 100) : 0;
 
     aChart.innerHTML = `
-      <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${state.metrics.anom.commodity}</span></div>
-      <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${state.metrics.anom.pod}</span></div>
-      <div class="bar-row"><b>Anomalia Anagrafica</b><div class="bar-track"><div class="bar-fill" style="width:${pName}%; background:var(--orange)"></div></div><span>${state.metrics.anom.name}</span></div>
+      <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${realAnomComm}</span></div>
+      <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${realAnomPod}</span></div>
+      <div class="bar-row"><b>Anomalia Anagrafica</b><div class="bar-track"><div class="bar-fill" style="width:${pName}%; background:var(--orange)"></div></div><span>${realAnomName}</span></div>
     `;
   }
 
@@ -725,7 +730,10 @@ function renderDashboard() {
     let eeCount = 0;
     let gasCount = 0;
     state.matched.forEach(item => {
-      if (item.commodity === "GA") gasCount++;
+      // Il valore reale salvato è "Gas naturale" / "Energia Elettrica",
+      // mai "GA": usiamo lo stesso helper già usato altrove nel file
+      // (podPdrValue, ecc.) per restare coerenti con i dati reali.
+      if (isGasRecord(item)) gasCount++;
       else eeCount++;
     });
     const totalMatched = state.matched.length;
@@ -750,17 +758,12 @@ function deleteMatched(id) {
     toast("Permesso negato: il tuo ruolo non può eliminare record");
     return;
   }
-  // Trova il record prima di eliminarlo per capire se aveva generato anomalie
-  const recordToDelete = state.matched.find(x => x.id === id);
-
   state.matched = state.matched.filter(x => x.id !== id);
   logEvent(state, `Eliminato record riconciliato: ${id}`);
 
-  // Se non ci sono più record abbinati di tipo manuale, azzeriamo il contatore anomalie visivo
-  const hasManualLeft = state.matched.some(x => x.tipo_match === "Manuale");
-  if (!hasManualLeft) {
-    state.metrics.anom = { commodity: 0, pod: 0, date: 0, name: 0 };
-  }
+  // Non serve più azzerare manualmente state.metrics.anom: il pannello
+  // Anomalie Rilevate viene ora ricalcolato ad ogni render direttamente
+  // dai flag salvati sui record rimasti in state.matched (vedi renderDashboard).
 
   save();
   render();
@@ -985,12 +988,9 @@ function autoMatchSelectedPair() {
 
 function manualMatch(u, p) {
   const conf = confidence(u, p);
-  if (u.commodity !== p.commodity) state.metrics.anom.commodity++;
-  if (u.cliente_nome_cognome.trim().toLowerCase() !== p.cliente_nome_cognome.trim().toLowerCase())
-    state.metrics.anom.name++;
-  if ((u.codice_pod && p.codice_pod && u.codice_pod !== p.codice_pod) || (u.codice_pdr && p.codice_pdr && u.codice_pdr !== p.codice_pdr))
-    state.metrics.anom.pod++;
-
+  // I flag di anomalia (commodity/nome/pod) vengono calcolati e salvati
+  // direttamente sul record da finalizeMatch(): il pannello Anomalie
+  // Rilevate li riconta a ogni render direttamente da state.matched.
   state.matched.unshift(finalizeMatch(u, p, "Manuale"));
   state.queuesigned = state.queuesigned.filter((x) => x.id !== u.id);
   state.queuearchived = state.queuearchived.filter((x) => x.id !== p.id);
