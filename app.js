@@ -818,7 +818,9 @@ function renderConsultazione() {
   }));
 
   let count = 0;
-  matchesOnly.forEach(({ d, emoji }) => {
+  
+  // Aggiunto l'indice "i" nel forEach se ti serve per data-idx
+  matchesOnly.forEach(({ d, emoji }, i) => { 
     if (comm && d.commodity !== comm) return;
 
     if (q) {
@@ -833,10 +835,27 @@ function renderConsultazione() {
     }
 
     count++;
-
+    const u = state.users.find((x) => x.id === d.matched_by);
     const tr = document.createElement("tr");
+    const userId = d.matched_by || "system";
     const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
     const provenanceLabel = getRecordProvenanceLabel(d);
+    
+    // 1. Dichiariamo "eye" fuori con "let" così è accessibile ovunque nel ciclo
+    let eye = "******"; // Default per chi non è DPO
+    
+    // Recuperiamo l'utente CORRENTE loggato (adatta "state.currentUser" al tuo progetto)
+    const currentUser = state.currentUser; 
+    const isCurrentUserDpo = currentUser && currentUser.role === "DPO";
+
+    if (isCurrentUserDpo) {
+      // Se l'utente è DPO, vede il bottone interattivo.
+      // Se è già stato rivelato in precedenza mostriamo il nome (se presente nel record), altrimenti l'occhio.
+      eye = d.revealed && d.revealed_username
+        ? `<span style="font-weight: 500;">👁️ ${escapeHtml(d.revealed_username)}</span>`
+        : `<button class="event-eye" data-idx="${i}" title="Rivela identità (DPO)">👁</button>`;
+    }
+
     const deleteBtn = can("action:elimina-record")
       ? '<button class="btn-delete-row" title="Elimina record">🗑️</button>'
       : "";
@@ -850,22 +869,57 @@ function renderConsultazione() {
         <div>${badgeText}</div>
         <div class="repo-origin-pill">Repository: ${escapeHtml(provenanceLabel)}</div>
       </td>
+      <td>${eye || 'N/D' }</td>
+
       <td>${deleteBtn}</td>
     `;
 
-    tr.onclick = (e) => {
+tr.onclick = async (e) => { // <-- Aggiunto "async" qui
+      // 1. Gestione Cestino (Elimina)
       if (e.target.classList.contains('btn-delete-row')) {
         e.stopPropagation();
         deleteMatched(d.id);
         return;
       }
+      // 2. Gestione Occhietto (DPO o span)
+      const eyeElement = e.target.classList.contains('event-eye') ? e.target : e.target.closest('.event-eye');
+      
+      if (eyeElement) {
+        e.stopPropagation(); // Ferma il click ed evita l'apertura del drawer
+        
+        try {
+          // Cambiamo temporaneamente l'icona in una clessidra o animazione di caricamento
+          eyeElement.innerHTML = "⏳";
+          
+          // Attendiamo il nome utente restituito dalla funzione
+          const usernameRivelato = await revealUser(u.id); 
+          
+          if (usernameRivelato) {
+            // Prendiamo il <td> dell'occhio (è la sesta colonna, quindi indice 5 del tr)
+            const tdOcchio = tr.cells[5]; 
+            
+            // Sostituiamo tutto il contenuto della cella con il nome utente reale
+            tdOcchio.innerHTML = `<span style="font-weight: 500; color: #2c3e50;">👁️ ${escapeHtml(usernameRivelato)}</span>`;
+          } else {
+            // Se non ritorna nulla, ripristiniamo l'occhio originale
+            eyeElement.innerHTML = "👁";
+          }
+        } catch (error) {
+          console.error("Errore durante la rivelazione dell'utente:", error);
+          eyeElement.innerHTML = "❌ Errore";
+        }
+        return;
+      }
+
+      // 3. Se si clicca sul resto della riga, si apre il drawer
       openDrawer(d);
     };
     b.appendChild(tr);
   });
 
   if (count === 0)
-    b.innerHTML = '<tr><td colspan="6" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>';
+    b.innerHTML = '<tr><td colspan="7" class="empty">Nessun documento trovato con i filtri selezionati.</td></tr>'; 
+    // Nota: colspan modificato a 7 perché hai 7 tag <td> nella riga sopra
 }
 
 // Area Staging: gestione delle code di contratti Uno Energy e Postel, con selezione e confronto manuale.
