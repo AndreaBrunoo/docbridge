@@ -1184,37 +1184,75 @@ function renderUsersPanel() {
     b.innerHTML = '<tr><td colspan="3" class="empty">Accesso riservato al ruolo DPO.</td></tr>';
     return;
   }
-  const roles = ["Consultatore", "Tecnico", "DPO"];
+const roles = ["Consultatore", "Tecnico", "DPO"];
   b.innerHTML = state.users
     .map((u) => {
+      const roleClass = u.role.toLowerCase();
       const options = roles
-        .map((r) => `<option value="${r}"${r === u.role ? " selected" : ""}>${r}</option>`)
+        .map((r) => {
+          const selected = r === u.role;
+          return `
+            <button type="button" class="role-dropdown-option role-${r.toLowerCase()}${selected ? " is-selected" : ""}" data-role="${r}">
+              <span class="role-dropdown-dot"></span>${r}
+              ${selected ? '<span class="role-dropdown-check">✓</span>' : ""}
+            </button>
+          `;
+        })
         .join("");
       const isSelf = state.currentUser?.id === u.id;
       return `
         <tr>
           <td><b>${escapeHtml(u.username)}</b>${isSelf ? ' <small class="pill">tu</small>' : ""}</td>
           <td>
-            <select class="role-select" data-user-id="${u.id}">${options}</select>
+            <div class="role-dropdown" data-user-id="${u.id}">
+              <button type="button" class="role-dropdown-trigger role-${roleClass}">
+                <span class="role-dropdown-label"><span class="role-dropdown-dot"></span>${escapeHtml(u.role)}</span>
+                <span class="role-dropdown-arrow">▾</span>
+              </button>
+              <div class="role-dropdown-menu">${options}</div>
+            </div>
           </td>
           <td><small>${escapeHtml(u.createdAt || "—")}</small></td>
         </tr>
       `;
     })
     .join("");
-  b.querySelectorAll(".role-select").forEach((sel) => {
-    sel.onchange = () => {
-      const userId = sel.getAttribute("data-user-id");
-      const ok = changeUserRole(userId, sel.value);
-      if (ok) {
-        toast(`Ruolo aggiornato per ${findUserById(userId)?.username || userId}`);
-        render();
-      } else {
-        toast("Impossibile aggiornare il ruolo");
-      }
+
+  b.querySelectorAll(".role-dropdown").forEach((dropdown) => {
+    const userId = dropdown.getAttribute("data-user-id");
+    const trigger = dropdown.querySelector(".role-dropdown-trigger");
+
+    trigger.onclick = (e) => {
+      e.stopPropagation();
+      const willOpen = !dropdown.classList.contains("open");
+      closeAllRoleDropdowns();
+      dropdown.classList.toggle("open", willOpen);
     };
+
+    dropdown.querySelectorAll(".role-dropdown-option").forEach((opt) => {
+      opt.onclick = (e) => {
+        e.stopPropagation();
+        const newRole = opt.getAttribute("data-role");
+        const ok = changeUserRole(userId, newRole);
+        if (ok) {
+          toast(`Ruolo aggiornato per ${findUserById(userId)?.username || userId}`);
+          render();
+        } else {
+          toast("Impossibile aggiornare il ruolo");
+          closeAllRoleDropdowns();
+        }
+      };
+    });
   });
 }
+
+function closeAllRoleDropdowns() {
+  document.querySelectorAll(".role-dropdown.open").forEach((el) => el.classList.remove("open"));
+}
+document.addEventListener("click", closeAllRoleDropdowns);
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeAllRoleDropdowns();
+});
 
 function escapeHtml(v) {
   return String(v)
