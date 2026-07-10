@@ -387,6 +387,11 @@ function finalizeMatch(u, p, type) {
     data_firma_contratto: u.data_firma_contratto || new Date().toISOString().split('T')[0],
     codice_pod: u.codice_pod || "",
     codice_pdr: u.codice_pdr || "",
+    // Il PD External ID è l'identificativo autorevole del documento Postel
+    // (WS/XML): va preservato dal lato "p" e non sovrascritto da quello,
+    // spesso assente, del record Unoenergy. Senza questo il controllo
+    // duplicati sul re-import dello stesso file non trova mai corrispondenza.
+    pde_external_id: p.pde_external_id || u.pde_external_id || "",
     uno_id: u.id,
     postel_id: p.id,
     tipo_match: type,
@@ -1843,15 +1848,28 @@ window.addEventListener("DOMContentLoaded", () => {
             record.pde_external_id.trim() !== "undefined";
 
           if (hasValidExternalId) {
-            // Check if a document with the same PD external ID already exists in consultation
-            const existingRecord = state.matched.find(r =>
-              r.pde_external_id &&
-              r.pde_external_id.trim() === record.pde_external_id.trim()
+            const trimmedId = record.pde_external_id.trim();
+            // Il duplicato va cercato ovunque il documento possa già
+            // trovarsi: sia tra i record già abbinati in consultazione
+            // (state.matched), sia tra quelli ancora in Staging Postel non
+            // abbinati (state.queuearchived). Senza questo secondo controllo,
+            // importare due volte lo stesso file XML prima che il primo
+            // documento venga abbinato non verrebbe mai intercettato.
+            const existingInConsultazione = state.matched.find(r =>
+              r.pde_external_id && r.pde_external_id.trim() === trimmedId
             );
+            const existingInStaging = state.queuearchived.find(r =>
+              r.pde_external_id && r.pde_external_id.trim() === trimmedId
+            );
+            const existingRecord = existingInConsultazione || existingInStaging;
 
             if (existingRecord) {
               // Document with same PD external ID already exists
-              toast(`Errore: Documento con PD External ID "${record.pde_external_id}" già presente in consultazione. Non è stato inserito.`);
+              const dove = existingInConsultazione ? "in consultazione" : "nello Staging Postel";
+              const errorMsg = `Errore: Documento con PD External ID "${record.pde_external_id}" già presente ${dove}. Il file non è stato caricato.`;
+              toast(errorMsg);
+              logEvent(state, errorMsg);
+              save();
               return; // Exit without inserting
             }
 
