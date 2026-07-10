@@ -1788,99 +1788,110 @@ window.addEventListener("DOMContentLoaded", () => {
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-          // Extract data from XML - assuming Postel WS format
-          const record = {};
+          // 1. Selezioniamo TUTTI i blocchi <info> presenti nell'XML
+          const infoNodes = xmlDoc.querySelectorAll("info");
+          
+          if (infoNodes.length === 0) {
+            toast("Nessun record valido trovato nel file XML.");
+            return;
+          }
 
-          // Extract common fields - adjust based on actual XML structure
-          record.cliente_nome_cognome = xmlDoc.querySelector("cliente_nome_cognome")?.textContent ||
-            xmlDoc.querySelector("ClienteNomeCognome")?.textContent ||
-            xmlDoc.querySelector("nome_cognome")?.textContent ||
-            "Cliente da XML";
+          let recordContatore = 0;
 
-          record.cliente_codice_fiscale = xmlDoc.querySelector("cliente_codice_fiscale")?.textContent ||
-            xmlDoc.querySelector("CodiceFiscale")?.textContent ||
-            xmlDoc.querySelector("codice_fiscale")?.textContent || "";
+          // 2. Iteriamo su ciascun nodo trovato (creando più istanze/record)
+          infoNodes.forEach((infoNode) => {
+            const record = {};
 
-          record.cliente_partita_iva = xmlDoc.querySelector("cliente_partita_iva")?.textContent ||
-            xmlDoc.querySelector("PartitaIVA")?.textContent ||
-            xmlDoc.querySelector("partita_iva")?.textContent || "";
+            // Estrarre i campi cercando RELATIVAMENTE a ciascun singolo "infoNode"
+            record.cliente_nome_cognome = infoNode.querySelector("cliente_nome_cognome")?.textContent ||
+              infoNode.querySelector("ClienteNomeCognome")?.textContent ||
+              infoNode.querySelector("nome_cognome")?.textContent ||
+              "Cliente da XML";
 
-          record.data_firma_contratto = xmlDoc.querySelector("data_firma_contratto")?.textContent ||
-            xmlDoc.querySelector("DataFirmaContratto")?.textContent ||
-            xmlDoc.querySelector("data_firma")?.textContent ||
-            new Date().toISOString().split('T')[0];
+            record.cliente_codice_fiscale = infoNode.querySelector("cliente_codice_fiscale")?.textContent ||
+              infoNode.querySelector("CodiceFiscale")?.textContent ||
+              infoNode.querySelector("codice_fiscale")?.textContent || "";
 
-          record.codice_pod = xmlDoc.querySelector("codice_pod")?.textContent ||
-            xmlDoc.querySelector("CodicePOD")?.textContent ||
-            xmlDoc.querySelector("codice_pod")?.textContent || "";
+            record.cliente_partita_iva = infoNode.querySelector("cliente_partita_iva")?.textContent ||
+              infoNode.querySelector("PartitaIVA")?.textContent ||
+              infoNode.querySelector("partita_iva")?.textContent || "";
 
-          record.codice_pdr = xmlDoc.querySelector("codice_pdr")?.textContent ||
-            xmlDoc.querySelector("CodicePDR")?.textContent ||
-            xmlDoc.querySelector("codice_pdr")?.textContent || "";
+            record.data_firma_contratto = infoNode.querySelector("data_firma_contratto")?.textContent ||
+              infoNode.querySelector("DataFirmaContratto")?.textContent ||
+              infoNode.querySelector("data_firma")?.textContent ||
+              new Date().toISOString().split('T')[0];
 
-          record.contract_account = xmlDoc.querySelector("contract_account")?.textContent ||
-            xmlDoc.querySelector("ContractAccount")?.textContent ||
-            xmlDoc.querySelector("contract_account")?.textContent || "";
+            record.codice_pod = infoNode.querySelector("codice_pod")?.textContent ||
+              infoNode.querySelector("CodicePOD")?.textContent ||
+              infoNode.querySelector("codice_pod")?.textContent || "";
 
-          record.pde_external_id = xmlDoc.querySelector("pde_external_id")?.textContent ||
-            xmlDoc.querySelector("PdeExternalId")?.textContent ||
-            xmlDoc.querySelector("pde_external_id")?.textContent || "";
+            record.codice_pdr = infoNode.querySelector("codice_pdr")?.textContent ||
+              infoNode.querySelector("CodicePDR")?.textContent ||
+              infoNode.querySelector("codice_pdr")?.textContent || "";
 
-          record.commodity = xmlDoc.querySelector("commodity")?.textContent ||
-            xmlDoc.querySelector("Commodity")?.textContent ||
-            xmlDoc.querySelector("commodity")?.textContent ||
-            "Energia Elettrica";
+            record.contract_account = infoNode.querySelector("contract_account")?.textContent ||
+              infoNode.querySelector("ContractAccount")?.textContent ||
+              infoNode.querySelector("contract_account")?.textContent || "";
 
-          record.cliente_codice_identificativo_univoco = xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent ||
-            xmlDoc.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
-            xmlDoc.querySelector("cliente_codice_identificativo_univoco")?.textContent || "";
+            record.pde_external_id = infoNode.querySelector("pde_external_id")?.textContent ||
+              infoNode.querySelector("PdeExternalId")?.textContent ||
+              infoNode.querySelector("pde_external_id")?.textContent || "";
 
-          record.cliente_record_type_testuale = xmlDoc.querySelector("cliente_record_type_testuale")?.textContent ||
-            xmlDoc.querySelector("RecordTypeTestuale")?.textContent ||
-            xmlDoc.querySelector("cliente_record_type_testuale")?.textContent || "Retail";
+            record.commodity = infoNode.querySelector("commodity")?.textContent ||
+              infoNode.querySelector("Commodity")?.textContent ||
+              infoNode.querySelector("commodity")?.textContent ||
+              "Energia Elettrica";
 
-          record.opportunita_tipo_record = xmlDoc.querySelector("opportunita_tipo_record")?.textContent ||
-            xmlDoc.querySelector("TipoRecordOpportunita")?.textContent ||
-            xmlDoc.querySelector("opportunita_tipo_record")?.textContent || "Switch";
+            record.cliente_codice_identificativo_univoco = infoNode.querySelector("cliente_codice_identificativo_univoco")?.textContent ||
+              infoNode.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
+              infoNode.querySelector("cliente_codice_identificativo_univoco")?.textContent || "";
 
-          record.opportunita_id = xmlDoc.querySelector("opportunita_id")?.textContent ||
-            xmlDoc.querySelector("OpportunitaID")?.textContent ||
-            xmlDoc.querySelector("opportunita_id")?.textContent || "";
+            record.cliente_record_type_testuale = infoNode.querySelector("cliente_record_type_testuale")?.textContent ||
+              infoNode.querySelector("RecordTypeTestuale")?.textContent ||
+              infoNode.querySelector("cliente_record_type_testuale")?.textContent || "Retail";
 
-          record.opportunita_nome = xmlDoc.querySelector("opportunita_nome")?.textContent ||
-            xmlDoc.querySelector("OpportunitaNome")?.textContent ||
-            xmlDoc.querySelector("opportunita_nome")?.textContent || "Opportunità da XML";
+            record.opportunita_tipo_record = infoNode.querySelector("opportunita_tipo_record")?.textContent ||
+              infoNode.querySelector("TipoRecordOpportunita")?.textContent ||
+              infoNode.querySelector("opportunita_tipo_record")?.textContent || "Switch";
 
-          record.opportunita_commodity = xmlDoc.querySelector("opportunita_commodity")?.textContent ||
-            xmlDoc.querySelector("OpportunitaCommodity")?.textContent ||
-            xmlDoc.querySelector("opportunita_commodity")?.textContent || "Power";
+            record.opportunita_id = infoNode.querySelector("opportunita_id")?.textContent ||
+              infoNode.querySelector("OpportunitaID")?.textContent ||
+              infoNode.querySelector("opportunita_id")?.textContent || "";
 
-          record.codice_prodotto_ee = xmlDoc.querySelector("codice_prodotto_ee")?.textContent ||
-            xmlDoc.querySelector("CodiceProdottoEE")?.textContent ||
-            xmlDoc.querySelector("codice_prodotto_ee")?.textContent || "";
+            record.opportunita_nome = infoNode.querySelector("opportunita_nome")?.textContent ||
+              infoNode.querySelector("OpportunitaNome")?.textContent ||
+              infoNode.querySelector("opportunita_nome")?.textContent || "Opportunità da XML";
 
-          record.codice_prodotto_gas = xmlDoc.querySelector("codice_prodotto_gas")?.textContent ||
-            xmlDoc.querySelector("CodiceProdottoGAS")?.textContent ||
-            xmlDoc.querySelector("codice_prodotto_gas")?.textContent || "";
+            record.opportunita_commodity = infoNode.querySelector("opportunita_commodity")?.textContent ||
+              infoNode.querySelector("OpportunitaCommodity")?.textContent ||
+              infoNode.querySelector("opportunita_commodity")?.textContent || "Power";
 
-          record.stato = xmlDoc.querySelector("stato")?.textContent ||
-            xmlDoc.querySelector("Stato")?.textContent ||
-            xmlDoc.querySelector("stato")?.textContent || "Attivo";
+            record.codice_prodotto_ee = infoNode.querySelector("codice_prodotto_ee")?.textContent ||
+              infoNode.querySelector("CodiceProdottoEE")?.textContent ||
+              infoNode.querySelector("codice_prodotto_ee")?.textContent || "";
 
-          record.data_certificazione = xmlDoc.querySelector("data_certificazione")?.textContent ||
-            xmlDoc.querySelector("DataCertificazione")?.textContent ||
-            xmlDoc.querySelector("data_certificazione")?.textContent ||
-            new Date().toISOString().split('T')[0];
+            record.codice_prodotto_gas = infoNode.querySelector("codice_prodotto_gas")?.textContent ||
+              infoNode.querySelector("CodiceProdottoGAS")?.textContent ||
+              infoNode.querySelector("codice_prodotto_gas")?.textContent || "";
 
-          // Generate ID
-          record.id = `POS-${Math.floor(2000 + Math.random() * 9000)}`;
-          record.origin_repo = getDefaultOriginRepo("Postel");
+            record.stato = infoNode.querySelector("stato")?.textContent ||
+              infoNode.querySelector("Stato")?.textContent ||
+              infoNode.querySelector("stato")?.textContent || "Attivo";
 
-          // Check if we have a valid external ID
-          const hasValidExternalId = record.pde_external_id &&
-            record.pde_external_id.trim() !== "" &&
-            record.pde_external_id.trim() !== "null" &&
-            record.pde_external_id.trim() !== "undefined";
+            record.data_certificazione = infoNode.querySelector("data_certificazione")?.textContent ||
+              infoNode.querySelector("DataCertificazione")?.textContent ||
+              infoNode.querySelector("data_certificazione")?.textContent ||
+              new Date().toISOString().split('T')[0];
+
+            // Generazione ID per questa specifica istanza
+            record.id = `POS-${Math.floor(2000 + Math.random() * 9000)}`;
+            record.origin_repo = getDefaultOriginRepo("Postel");
+
+            // Controllo validità external ID
+            const hasValidExternalId = record.pde_external_id &&
+              record.pde_external_id.trim() !== "" &&
+              record.pde_external_id.trim() !== "null" &&
+              record.pde_external_id.trim() !== "undefined";
 
           if (hasValidExternalId) {
             const trimmedId = record.pde_external_id.trim();
@@ -1908,59 +1919,57 @@ window.addEventListener("DOMContentLoaded", () => {
               return; // Exit without inserting
             }
 
-            // Go directly to consultation (matched state) - skip staging
-            // Create a match with a dummy Uno record or use the last Uno if available
-            const lastUno = state.queuesigned[state.queuesigned.length - 1];
-            let matchRecord;
+              const lastUno = state.queuesigned[state.queuesigned.length - 1];
+              let matchRecord;
 
-            if (lastUno) {
-              // Use the last Uno record for matching
-              matchRecord = finalizeMatch(lastUno, record, "Automatico (da XML con ID valido)");
-              state.matched.unshift(matchRecord);
-              state.metrics.auto++;
-              logEvent(state, `Record XML con ID valido andato direttamente in consultazione: ${matchRecord.id}`);
+              if (lastUno) {
+                matchRecord = finalizeMatch(lastUno, record, "Automatico (da XML con ID valido)");
+                state.matched.unshift(matchRecord);
+                state.metrics.auto++;
+                logEvent(state, `Record XML con ID valido andato direttamente in consultazione: ${matchRecord.id}`);
+              } else {
+                const unoRecord = {
+                  id: `UNO-${Math.floor(1000 + Math.random() * 9000)}`,
+                  cliente_nome_cognome: record.cliente_nome_cognome,
+                  cliente_codice_fiscale: record.cliente_codice_fiscale,
+                  cliente_partita_iva: record.cliente_partita_iva,
+                  data_firma_contratto: record.data_firma_contratto,
+                  codice_pod: record.codice_pod,
+                  codice_pdr: record.codice_pdr,
+                  contract_account: record.contract_account,
+                  pde_external_id: record.pde_external_id,
+                  commodity: record.commodity,
+                  cliente_codice_identificativo_univoco: record.cliente_codice_identificativo_univoco,
+                  cliente_record_type_testuale: record.cliente_record_type_testuale,
+                  opportunita_tipo_record: record.opportunita_tipo_record,
+                  opportunita_id: record.opportunita_id,
+                  opportunita_nome: record.opportunita_nome,
+                  opportunita_commodity: record.opportunita_commodity,
+                  codice_prodotto_ee: record.codice_prodotto_ee,
+                  codice_prodotto_gas: record.codice_prodotto_gas,
+                  stato: record.stato,
+                  data_certificazione: record.data_certificazione
+                };
+
+                matchRecord = finalizeMatch(unoRecord, record, "Automatico (da XML con ID valido)");
+                state.matched.unshift(matchRecord);
+                state.metrics.auto++;
+                logEvent(state, `Record XML con ID valido andato direttamente in consultazione (con Uno generato): ${matchRecord.id}`);
+              }
             } else {
-              // Create a minimal Uno record for matching
-              const unoRecord = {
-                id: `UNO-${Math.floor(1000 + Math.random() * 9000)}`,
-                cliente_nome_cognome: record.cliente_nome_cognome,
-                cliente_codice_fiscale: record.cliente_codice_fiscale,
-                cliente_partita_iva: record.cliente_partita_iva,
-                data_firma_contratto: record.data_firma_contratto,
-                codice_pod: record.codice_pod,
-                codice_pdr: record.codice_pdr,
-                contract_account: record.contract_account,
-                pde_external_id: record.pde_external_id,
-                commodity: record.commodity,
-                cliente_codice_identificativo_univoco: record.cliente_codice_identificativo_univoco,
-                cliente_record_type_testuale: record.cliente_record_type_testuale,
-                opportunita_tipo_record: record.opportunita_tipo_record,
-                opportunita_id: record.opportunita_id,
-                opportunita_nome: record.opportunita_nome,
-                opportunita_commodity: record.opportunita_commodity,
-                codice_prodotto_ee: record.codice_prodotto_ee,
-                codice_prodotto_gas: record.codice_prodotto_gas,
-                stato: record.stato,
-                data_certificazione: record.data_certificazione
-              };
-
-              matchRecord = finalizeMatch(unoRecord, record, "Automatico (da XML con ID valido)");
-              state.matched.unshift(matchRecord);
-              state.metrics.auto++;
-              logEvent(state, `Record XML con ID valido andato direttamente in consultazione (con Uno generato): ${matchRecord.id}`);
+              // Invio allo Staging
+              state.queuearchived.push(record);
+              state.lastPostelId = record.id;
             }
 
-            save();
-            render();
-            toast(`Record XML con ID valido elaborato e inviato direttamente in consultazione: ${record.id}`);
-          } else {
-            // No valid external ID - go to staging as before
-            state.queuearchived.push(record);
-            state.lastPostelId = record.id;
-            save();
-            render();
-            toast(`Record Postel ${record.id} inserito nello Staging (ID esterno non valido o mancante)`);
-          }
+            recordContatore++;
+          });
+
+          // 3. Salviamo lo stato globale e aggiorniamo la UI solo UNA volta, alla fine del ciclo
+          save();
+          render();
+          toast(`Elaborazione completata con successo. Inseriti ${recordContatore} record.`);
+
         } catch (err) {
           toast("Errore nel parsing del file XML: " + err.message);
           console.error(err);
@@ -1969,7 +1978,7 @@ window.addEventListener("DOMContentLoaded", () => {
       reader.readAsText(file);
     };
     fileInput.click();
-  };
+};
 
   document.getElementById("btnAutoMatch").onclick = () => {
     const count = autoMatchAll();
