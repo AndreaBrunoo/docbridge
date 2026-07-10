@@ -750,11 +750,6 @@ function renderDashboard() {
   }
 }
 
-function matchColor(score) {
-  const s = Math.max(0, Math.min(100, score));
-  const hue = Math.round(s * 1.2);
-  return `hsl(${hue}, 75%, 42%)`;
-}
 
 function deleteMatched(id) {
   if (!can("action:elimina-record")) {
@@ -836,7 +831,7 @@ function renderConsultazione() {
     const u = state.users.find((x) => x.id === d.matched_by);
     const tr = document.createElement("tr");
     const userId = d.matched_by || "system";
-    const badgeText = `<span class="badge" style="background:${matchColor(100)};color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
+    const badgeText = `<span class="badge" style="background:#0f913f;color:#fff">${d.tipo_match}</span> <span style="font-size:14px; margin-left: 5px;" title="Tipo match: ${d.tipo_match}">${emoji}</span>`;
     const provenanceLabel = getRecordProvenanceLabel(d);
     
     // 1. Dichiariamo "eye" fuori con "let" così è accessibile ovunque nel ciclo
