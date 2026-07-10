@@ -348,7 +348,14 @@ button.full {
 }
 
 .diff-grid-scroll {
-  max-height: 400px;
+  /* La zona diff ora riempie tutto lo spazio verticale rimasto nel pannello
+     del modale (che ha max-height: 88vh). Solo lei scrolla internamente;
+     l'header (titolo + riquadri repository) e il footer "Accoppia record"
+     restano visibili sopra/sotto. flex: 1 + min-height: 0 sono necessari
+     perché un flex item con overflow auto senza min-height: 0 non scrolla
+     correttamente dentro a un container con altezza limitata. */
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin-bottom: 20px;
 }
@@ -861,12 +868,16 @@ select:focus {
   transform: translate(-50%, -45%);
   width: 92vw;
   max-width: 1400px;
+  max-height: 88vh; /* lascia un margine sopra/sotto per non toccare i bordi della viewport */
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 35px;
   box-shadow: var(--shadow);
   transition: transform 0.25s;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* lo scroll vive solo nella zona diff-grid-scroll */
 }
 
 .modal.open .modal-panel {
@@ -953,6 +964,111 @@ select:focus {
 .diff.changed {
   background: #fee2e2 !important;
   border-color: var(--red) !important;
+}
+
+/* --- HEADER REPOSITORY: RICONCILIAZIONE GUIDATA --- */
+/* Due riquadri grandi in cima al modal che mostrano il nome del repository
+   di provenienza dei due record confrontati (Uno Energy a sx, Postel a dx).
+   Sono volutamente più grandi ed evidenti dei .diff sottostanti, in modo che
+   l'utente sappia subito "da dove arrivano" i due tracciati prima ancora di
+   scorrere la lista dei campi. */
+.recon-repo-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 6px 0 22px 0;
+}
+
+.recon-repo-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 22px 26px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  min-height: 96px;
+}
+
+.recon-repo-card-uno {
+  border-left: 6px solid var(--blue);
+  background: linear-gradient(135deg, var(--panel) 0%, rgba(3, 56, 120, 0.08) 100%);
+}
+
+.recon-repo-card-postel {
+  border-left: 6px solid var(--orange);
+  background: linear-gradient(135deg, var(--panel) 0%, rgba(247, 168, 35, 0.10) 100%);
+}
+
+.recon-repo-card-icon {
+  font-size: 32px;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--panel-nested);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+}
+
+.recon-repo-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recon-repo-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--muted);
+}
+
+.recon-repo-card-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.recon-repo-card-client {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.dark .recon-repo-card {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
+.dark .recon-repo-card-uno {
+  background: linear-gradient(135deg, var(--panel) 0%, rgba(59, 130, 246, 0.10) 100%);
+}
+
+.dark .recon-repo-card-postel {
+  background: linear-gradient(135deg, var(--panel) 0%, rgba(249, 115, 22, 0.12) 100%);
+}
+
+@media (max-width: 720px) {
+  .recon-repo-header {
+    grid-template-columns: 1fr;
+  }
+  .recon-repo-card {
+    padding: 18px 20px;
+    min-height: 0;
+  }
+  .recon-repo-card-name {
+    font-size: 18px;
+  }
 }
 
 .diff.changed small {
@@ -1213,6 +1329,7 @@ select:focus {
   padding: 14px 18px;
   margin-bottom: 16px;
   box-shadow: 0 4px 12px var(--text);
+  flex-shrink: 0; /* non si schiaccia quando l'area diff scrolla */
 }
 
 .recon-status {

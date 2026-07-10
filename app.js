@@ -1260,7 +1260,14 @@ function openManualCompare() {
   }
   const m = document.getElementById("modalCompare");
   if (!m) return;
-  document.getElementById("compareTitle").innerText = `Riconciliazione guidata: ${selectedUno.id} ↔ ${selectedPostel.id}`;
+  const unoNameEl = document.getElementById("compareRepoUnoName");
+  const unoClientEl = document.getElementById("compareRepoUnoClient");
+  const postelNameEl = document.getElementById("compareRepoPostelName");
+  const postelClientEl = document.getElementById("compareRepoPostelClient");
+  if (unoNameEl) unoNameEl.textContent = getRecordOriginLabel(selectedUno);
+  if (unoClientEl) unoClientEl.textContent = selectedUno.id || "—";
+  if (postelNameEl) postelNameEl.textContent = getRecordOriginLabel(selectedPostel);
+  if (postelClientEl) postelClientEl.textContent = selectedPostel.id || "—";
   const b = document.getElementById("compareDiffGrid");
   b.innerHTML = "";
   // Salva lo stato originale per consentire il rollback completo
