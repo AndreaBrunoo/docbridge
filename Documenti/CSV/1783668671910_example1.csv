@@ -1,0 +1,2 @@
+cliente_nome_cognome;cliente_codice_fiscale;cliente_partita_iva;data_firma_contratto;codice_pod;codice_pdr;contract_account;pde_external_id;commodity;cliente_codice_identificativo_univoco;cliente_record_type_testuale;opportunita_tipo_record;opportunita_id;opportunita_nome;opportunita_commodity;codice_prodotto_ee;codice_prodotto_gas;stato;data_certificazione
+Mario Rossi;RSSMRA80A01H501U;01234567890;2026-07-07;IT001E12345678;;CA-900123;PDE-778899;EE;CID-001;Business;Contratto Energia;OPP-5521;Migrazione Business EE;EE;EE-FIX-2026;;Firmato;2026-07-07
