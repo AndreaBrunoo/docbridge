@@ -550,11 +550,6 @@ select {
   transition: all 0.2s;
 }
 
-input:focus,
-select:focus {
-  border-color: var(--text);
-}
-
 .table-wrap {
   max-height: 520px;
   overflow-y: auto;
@@ -1137,7 +1132,7 @@ body.dark .table-wrap {
 }
 
 .diff-merged small {
-  color: var(--orange) !important;
+  color: var(--muted);
   font-weight: 600;
   display: block;
   margin-bottom: 8px;
@@ -1156,7 +1151,6 @@ body.dark .table-wrap {
 
 .diff-merged-input {
   flex: 1;
-  border: 1px solid var(--orange);
   background: #fff;
   color: var(--text);
   padding: 8px 12px;
@@ -1167,7 +1161,6 @@ body.dark .table-wrap {
 
 .diff-merged-input:focus {
   outline: none;
-  border-color: var(--orange);
   box-shadow: 0 0 0 3px var(--shadow);
 }
 
@@ -1214,23 +1207,20 @@ body.dark .table-wrap {
 }
 
 .diff-merged.confirmed {
-  background: var(--orange) !important;
-  border-color: var(--orange) !important;
+  background: var(--panel-nested) !important;
 }
 
 .diff-merged.confirmed small {
-  color: #fff !important;
   opacity: 0.9;
 }
 
 .diff-merged.confirmed b {
-  color: #fff !important;
+  color: var(--text) !important;
   font-size: 16px;
   font-weight: 700;
 }
 
 .diff-merged.confirmed .diff-merged-hint {
-  color: rgba(255, 255, 255, 0.95) !important;
   font-weight: 500;
 }
 
@@ -1255,11 +1245,10 @@ body.dark .table-wrap {
 .dark .diff-merged-input {
   background: var(--panel-nested);
   color: var(--text);
-  border-color: var(--orange);
 }
 
 .dark .diff-merged.confirmed {
-  background: var(--orange) !important;
+  background: var(--panel-nested) !important;
 }
 
 .dark .diff-merged.confirmed b,
@@ -1323,12 +1312,10 @@ body.dark .table-wrap {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, var(--orange) 100%);
-  border: 1px solid var(--orange);
+  background: linear-gradient(135deg, #ffffff 0%, var(--orange) 300%);
   border-radius: 14px;
   padding: 14px 18px;
   margin-bottom: 16px;
-  box-shadow: 0 4px 12px var(--text);
   flex-shrink: 0; /* non si schiaccia quando l'area diff scrolla */
 }
 
@@ -1371,8 +1358,7 @@ body.dark .table-wrap {
 }
 
 .dark .recon-footer {
-  background: linear-gradient(135deg, var(--line) 0%, var(--orange) 100%);
-  border-color: var(--orange);
+  background: linear-gradient(135deg, var(--line) 0%, var(--orange) 300%);
 }
 
 .dark .recon-status.pending {
