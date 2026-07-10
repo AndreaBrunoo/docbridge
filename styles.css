@@ -10,7 +10,7 @@
   --muted: #64748b;
   --btn-csv: #0ea5e9;
   --orange: #f7a823;
-  --green: #0f913f;
+  --green: #0d7b36;
   /* Verde acceso */
   --red: #ef4444;
   /* Rosso acceso */
@@ -1888,4 +1888,44 @@ body.animating-theme::before {
   background: var(--accent, #4f8cff);
   color: #fff;
   border-color: var(--accent, #4f8cff);
+}
+
+/* --- Card Reveal Utente DPO --- */
+.user-reveal-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 6px 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-size: 13px;
+  color: var(--blue);
+}
+
+.user-reveal-eye {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+  flex-shrink: 0;
+}
+
+.user-reveal-eye:hover {
+  opacity: 1;
+}
+
+.user-reveal-name {
+  font-weight: 500;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 150px;
 }
