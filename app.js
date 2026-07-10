@@ -730,10 +730,7 @@ function renderDashboard() {
     let eeCount = 0;
     let gasCount = 0;
     state.matched.forEach(item => {
-      // Il valore reale salvato è "Gas naturale" / "Energia Elettrica",
-      // mai "GA": usiamo lo stesso helper già usato altrove nel file
-      // (podPdrValue, ecc.) per restare coerenti con i dati reali.
-      if (isGasRecord(item)) gasCount++;
+      if (item.commodity === "GA") gasCount++;
       else eeCount++;
     });
     const totalMatched = state.matched.length;
