@@ -1,0 +1,23 @@
+<root>
+  <info>
+    <cliente_nome_cognome>Giulia Viola</cliente_nome_cognome>
+    <cliente_codice_fiscale>BRNANN90C44L219X</cliente_codice_fiscale>
+    <cliente_partita_iva>01234567892</cliente_partita_iva>
+    <data_firma_contratto>2026-07-09</data_firma_contratto>
+    <codice_pod/>
+    <codice_pdr>50017400</codice_pdr>
+    <contract_account>CA-995500</contract_account>
+    <pde_external_id>PDE-713894</pde_external_id>
+    <commodity>GA</commodity>
+    <cliente_codice_identificativo_univoco>CID-002</cliente_codice_identificativo_univoco>
+    <cliente_record_type_testuale>Residenziale</cliente_record_type_testuale>
+    <opportunita_tipo_record>Contratto Gas naturale</opportunita_tipo_record>
+    <opportunita_id>OPP-9455</opportunita_id>
+    <opportunita_nome>Migrazione Gas naturale</opportunita_nome>
+    <opportunita_commodity>GA</opportunita_commodity>
+    <codice_prodotto_ee/>
+    <codice_prodotto_gas>DUAL_FLAT_GAS</codice_prodotto_gas>
+    <stato>In lavorazione</stato>
+    <data_certificazione>2026-07-09</data_certificazione>
+  </info>
+</root>
