@@ -291,7 +291,12 @@ function logEvent(s, txt, userId) {
 }
 
 function isGasRecord(d) {
-  return (d?.commodity || "").toLowerCase().includes("gas");
+  if (!d) return false;
+  const hasPod = !!(d.codice_pod && d.codice_pod.toString().trim());
+  const hasPdr = !!(d.codice_pdr && d.codice_pdr.toString().trim());
+  if (hasPdr && !hasPod) return true;
+  if (hasPod && !hasPdr) return false;
+  return (d.commodity || "").toString().toLowerCase().includes("gas");
 }
 
 function podPdrValue(d) {
@@ -453,6 +458,7 @@ function autoMatchAll(silent = false) {
         return;
       }
 
+      if (commodityIncompatible(u, p)) return;
       const c = confidence(u, p);
       if (c.score > bestScore) {
         bestScore = c.score;
@@ -509,7 +515,10 @@ function parseCSVLine(line, sep) {
 function parseCSV(text) {
   const lines = text.trim().split(/\r?\n/).filter((l) => l.trim() !== "");
   if (lines.length < 2) throw new Error("Il file CSV non contiene righe di dati");
-  const sep = lines[0].includes(";") ? ";" : ",";
+  const headerLine = lines[0];
+  const sepCandidates = [["\t", (headerLine.match(/\t/g) || []).length], [";", (headerLine.match(/;/g) || []).length], [",", (headerLine.match(/,/g) || []).length]];
+  sepCandidates.sort((a, b) => b[1] - a[1]);
+  const sep = sepCandidates[0][1] > 0 ? sepCandidates[0][0] : ",";
   const rawHeaders = parseCSVLine(lines[0], sep).map((h) => h.trim());
   const headers = rawHeaders.map((h) => CSV_HEADER_MAP[h.toLowerCase()] || h);
   const records = [];
@@ -521,7 +530,9 @@ function parseCSV(text) {
       if (h) r[h] = values[idx] !== undefined ? values[idx] : "";
     });
     if (!r.cliente_nome_cognome) r.cliente_nome_cognome = "Cliente da CSV";
-    if (!r.commodity) r.commodity = "Energia Elettrica";
+    if (!r.commodity) {
+      r.commodity = (r.codice_pdr && !r.codice_pod) ? "Gas naturale" : "Energia Elettrica";
+    }
     records.push(r);
   }
   if (!records.length) throw new Error("Nessuna riga dati valida trovata nel CSV");
@@ -1923,8 +1934,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
             record.commodity = infoNode.querySelector("commodity")?.textContent ||
               infoNode.querySelector("Commodity")?.textContent ||
-              infoNode.querySelector("commodity")?.textContent ||
-              "Energia Elettrica";
+              ((record.codice_pdr && !record.codice_pod) ? "Gas naturale" : "Energia Elettrica");
 
             record.cliente_codice_identificativo_univoco = infoNode.querySelector("cliente_codice_identificativo_univoco")?.textContent ||
               infoNode.querySelector("CodiceIdentificativoUnivoco")?.textContent ||
