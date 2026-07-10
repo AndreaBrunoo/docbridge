@@ -1,2 +1,2 @@
 cliente_nome_cognome;cliente_codice_fiscale;cliente_partita_iva;data_firma_contratto;codice_pod;codice_pdr;contract_account;pde_external_id;commodity;cliente_codice_identificativo_univoco;cliente_record_type_testuale;opportunita_tipo_record;opportunita_id;opportunita_nome;opportunita_commodity;codice_prodotto_ee;codice_prodotto_gas;stato;data_certificazione
-Stefano Neri;VRDLGU75M03H501F;01234567891;2026-07-09;;500210655268;CA-970114;;GAS;CID-001;Residenziale;Contratto Gas naturale;OPP-4941;Migrazione Gas naturale;GAS;;CON_PL_VAR_GAS;In lavorazione;2026-07-09
+Stefano Neri;VRDLGU75M03H501F;01234567891;2026-07-09;;500210655268;CA-970114;;GA;CID-001;Residenziale;Contratto Gas naturale;OPP-4941;Migrazione Gas naturale;GA;;CON_PL_VAR_GAS;In lavorazione;2026-07-09

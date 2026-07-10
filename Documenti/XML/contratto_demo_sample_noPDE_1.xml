@@ -8,13 +8,13 @@
     <codice_pdr>500210655268</codice_pdr>
     <contract_account>CA-970114</contract_account>
     <pde_external_id/>
-    <commodity>GAS</commodity>
+    <commodity>GA</commodity>
     <cliente_codice_identificativo_univoco>CID-001</cliente_codice_identificativo_univoco>
     <cliente_record_type_testuale>Residenziale</cliente_record_type_testuale>
     <opportunita_tipo_record>Contratto Gas naturale</opportunita_tipo_record>
     <opportunita_id>OPP-4941</opportunita_id>
     <opportunita_nome>Migrazione Gas naturale</opportunita_nome>
-    <opportunita_commodity>GAS</opportunita_commodity>
+    <opportunita_commodity>GA</opportunita_commodity>
     <codice_prodotto_ee/>
     <codice_prodotto_gas>CON_PL_VAR_GAS</codice_prodotto_gas>
     <stato>In lavorazione</stato>
