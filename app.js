@@ -750,7 +750,6 @@ function renderDashboard() {
   }
 }
 
-
 function deleteMatched(id) {
   if (!can("action:elimina-record")) {
     toast("Permesso negato: il tuo ruolo non può eliminare record");
@@ -786,6 +785,7 @@ function deleteStaging(id, type) {
   render();
   toast("Record rimosso dallo staging");
 }
+
 
 function renderConsultazione() {
   const q = document.getElementById("docSearch").value.toLowerCase().trim();
@@ -836,11 +836,12 @@ function renderConsultazione() {
     const isCurrentUserDpo = currentUser && currentUser.role === "DPO";
 
     if (isCurrentUserDpo) {
-      // Se l'utente è DPO, vede il bottone interattivo.
-      // Se è già stato rivelato in precedenza mostriamo il nome (se presente nel record), altrimenti l'occhio.
-      eye = d.revealed && d.revealed_username
-        ? `<span style="font-weight: 500;">👁️ ${escapeHtml(d.revealed_username)}</span>`
-        : `<button class="event-eye" data-idx="${i}" title="Rivela identità (DPO)">👁</button>`;
+      // Se l'utente è DPO, vede una card con l'occhio
+      // La card contiene: occhio + eventualmente il nome (toggle)
+      eye = `<div class="user-reveal-card" data-reveal-idx="${i}" data-user-id="${u.id}">
+        <button class="user-reveal-eye" title="Rivela/Nascondi identità">👁️</button>
+        <span class="user-reveal-name" style="display: none;"></span>
+      </div>`;
     }
 
     const deleteBtn = can("action:elimina-record")
@@ -861,39 +862,46 @@ function renderConsultazione() {
       <td>${deleteBtn}</td>
     `;
 
-tr.onclick = async (e) => { // <-- Aggiunto "async" qui
+tr.onclick = async (e) => {
       // 1. Gestione Cestino (Elimina)
       if (e.target.classList.contains('btn-delete-row')) {
         e.stopPropagation();
         deleteMatched(d.id);
         return;
       }
-      // 2. Gestione Occhietto (DPO o span)
-      const eyeElement = e.target.classList.contains('event-eye') ? e.target : e.target.closest('.event-eye');
 
-      if (eyeElement) {
-        e.stopPropagation(); // Ferma il click ed evita l'apertura del drawer
+      // 2. Gestione Card Occhio (DPO) - Toggle reveal/hide
+      const revealBtn = e.target.closest('.user-reveal-eye');
+      if (revealBtn) {
+        e.stopPropagation();
 
-        try {
-          // Cambiamo temporaneamente l'icona in una clessidra o animazione di caricamento
-          eyeElement.innerHTML = "⏳";
+        const card = revealBtn.closest('.user-reveal-card');
+        const nameSpan = card.querySelector('.user-reveal-name');
+        const isCurrentlyRevealed = nameSpan.style.display !== 'none';
 
-          // Attendiamo il nome utente restituito dalla funzione
-          const usernameRivelato = await revealUser(u.id);
+        if (isCurrentlyRevealed) {
+          // Nascondi il nome e cambia occhio
+          nameSpan.style.display = 'none';
+          revealBtn.textContent = '👁️';
+        } else {
+          // Rivela il nome e cambia occhio
+          try {
+            revealBtn.textContent = '⏳';
 
-          if (usernameRivelato) {
-            // Prendiamo il <td> dell'occhio (è la sesta colonna, quindi indice 5 del tr)
-            const tdOcchio = tr.cells[5];
+            // Attendiamo il nome utente
+            const usernameRivelato = await revealUser(u.id);
 
-            // Sostituiamo tutto il contenuto della cella con il nome utente reale
-            tdOcchio.innerHTML = `<span style="font-weight: 500; color: #2c3e50;">👁️ ${escapeHtml(usernameRivelato)}</span>`;
-          } else {
-            // Se non ritorna nulla, ripristiniamo l'occhio originale
-            eyeElement.innerHTML = "👁";
+            if (usernameRivelato) {
+              nameSpan.textContent = escapeHtml(usernameRivelato);
+              nameSpan.style.display = 'inline';
+              revealBtn.textContent = '🙈';
+            } else {
+              revealBtn.textContent = '👁️';
+            }
+          } catch (error) {
+            console.error("Errore durante la rivelazione dell'utente:", error);
+            revealBtn.textContent = '👁️';
           }
-        } catch (error) {
-          console.error("Errore durante la rivelazione dell'utente:", error);
-          eyeElement.innerHTML = "❌ Errore";
         }
         return;
       }
