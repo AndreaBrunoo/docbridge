@@ -1,0 +1,2 @@
+cliente_nome_cognome;cliente_codice_fiscale;cliente_partita_iva;data_firma_contratto;codice_pod;codice_pdr;contract_account;pde_external_id;commodity;cliente_codice_identificativo_univoco;cliente_record_type_testuale;opportunita_tipo_record;opportunita_id;opportunita_nome;opportunita_commodity;codice_prodotto_ee;codice_prodotto_gas;stato;data_certificazione
+Anna Bruni;BNCSTN85B12F205Z;01234567894;2026-07-09;IT001E92619203;;CA-981801;PDE-751220;EE;CID-004;Business;Contratto Energia elettrica;OPP-4984;Migrazione Energia elettrica;EE;DUAL_FLAT_EE;;In lavorazione;2026-07-09
