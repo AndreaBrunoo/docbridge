@@ -715,43 +715,10 @@ function renderDashboard() {
     if (item.tipo_match === "Manuale") realManualCount++;
   });
 
-  // Calcoliamo le anomalie reali basandoci solo sui contratti attualmente
-  // abbinati manualmente, leggendo i flag salvati sul record da
-  // finalizeMatch(). Così il totale è sempre coerente con ciò che c'è
-  // davvero in state.matched, anche se si eliminano singoli record.
-  let realAnomComm = 0;
-  let realAnomPod = 0;
-  let realAnomName = 0;
-
-  state.matched.forEach(item => {
-    if (item.tipo_match === "Manuale") {
-      if (item.anom_commodity) realAnomComm++;
-      if (item.anom_pod) realAnomPod++;
-      if (item.anom_name) realAnomName++;
-    }
-  });
-
-  const totalAnomalies = realAnomComm + realAnomPod + realAnomName;
-
   // Aggiorniamo i testi dei KPI a schermo
   document.getElementById("kpiAuto").innerText = realAutoCount;
   document.getElementById("kpiManuale").innerText = realManualCount;
   document.getElementById("kpiStaging").innerText = state.queuesigned.length + state.queuearchived.length;
-  document.getElementById("kpiAnom").innerText = totalAnomalies;
-
-  // 2. RENDER GRAFICO ANOMALIE RILEVATE (In alto, a tutta larghezza)
-  const aChart = document.getElementById("anomChart");
-  if (aChart) {
-    const pComm = totalAnomalies > 0 ? Math.round((realAnomComm / totalAnomalies) * 100) : 0;
-    const pPod = totalAnomalies > 0 ? Math.round((realAnomPod / totalAnomalies) * 100) : 0;
-    const pName = totalAnomalies > 0 ? Math.round((realAnomName / totalAnomalies) * 100) : 0;
-
-    aChart.innerHTML = `
-      <div class="bar-row"><b>Discrepanza Commodity</b><div class="bar-track"><div class="bar-fill" style="width:${pComm}%; background:var(--orange)"></div></div><span>${realAnomComm}</span></div>
-      <div class="bar-row"><b>Discrepanza POD/PDR</b><div class="bar-track"><div class="bar-fill" style="width:${pPod}%; background:var(--orange)"></div></div><span>${realAnomPod}</span></div>
-      <div class="bar-row"><b>Anomalia Anagrafica</b><div class="bar-track"><div class="bar-fill" style="width:${pName}%; background:var(--orange)"></div></div><span>${realAnomName}</span></div>
-    `;
-  }
 
   // 3. RENDER RICONCILIAZIONE FLUSSI (Affiancato a sinistra)
   const mChart = document.getElementById("matchChart");
