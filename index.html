@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="it">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Unoenergy Premium Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><img style="width: 100%; height: auto;" src="images/logo-unoenergy.png" alt="DocBridge">
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          ✦ Dashboard
+        </button>
+        <button class="nav-item" data-view="consultazione">
+          ⌕ Consultazione
+        </button>
+        <button class="nav-item staging-btn" id="nav-staging" data-view="staging">
+          ⇄ Area Staging
+          <span id="notificationDot" class="dot hidden"></span>
+        </button>
+        <button class="nav-item" id="nav-manuale" data-view="manuale">
+          ＋ Caricamento manuale
+        </button>
+        <button class="nav-item" id="nav-users" data-view="users">🛡 Gestione utenti</button>
+      </nav>
+      <div class="repo-card-wrap">
+        <div class="side-card" id="repoCard" title="Clicca per gestire i repository">
+          <small>Repository attive</small>
+          <div id="repoStatusList">
+      <main class="main">
+        <header class="topbar">
+
+          <div class="top-actions">
+            <button id="btnUno">☁ Carica Uno Energy CSV</button>
+            <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+            <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
+            <button id="btnAutoMatch" class="success">✓ Match automatico</button>
+          </div>
+        </div>
+
+        <div class="repo-toggle-panel" id="repoTogglePanel">
+          <small>Gestisci repository</small>
+          <div id="repoToggleList"></div>
+        </div>
+      </div>
+      <button id="themeToggle" class="ghost full">🌙 Dark mode</button>
+      <button id="resetDemo" class="ghost full mt-sm" title="Cancella i dati demo salvati nel browser">↺ Ripristina dati
+        demo</button>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="top-actions">
+          <button id="btnUno">☁ Carica Unoenergy CSV</button>
+          <input id="csvInput" type="file" accept=".csv,text/csv" hidden />
+          <button id="btnPostel" class="ghostPostel">📝 Importa Postel WS</button>
+          <button id="btnAutoMatch" class="success">✓ Match automatico</button>
+        </div>
+        <div id="userBadge" class="user-badge" style="display:none"></div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="kpi-grid">
+          <div class="kpi">
+            <small>Match Automatici</small><b id="kpiAuto">0</b>
+          </div>
+          <div class="kpi">
+            <small>Match Manuali Operatore</small><b id="kpiManuale">0</b>
+          </div>
+          <div class="kpi">
+            <small>In attesa in Staging</small><b id="kpiStaging">0</b>
+          </div>
+        </div>
+
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h3>Riconciliazione Flussi</h3>
+            </div>
+            <div id="matchChart" class="chart-bars"></div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Tipologia Commodity (Contratti Abbinati)</h3>
+            </div>
+            <div id="commodityChart" class="chart-bars"></div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-head">
+              <h3>Log Eventi Sistema</h3>
+            </div>
+            <div id="timelineEvents" class="timeline"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="consultazione" class="view">
+        <div class="card">
+          <div class="search-row wrap">
+            <input type="text" id="docSearch"
+              placeholder="Cerca per Codice Fiscale, Partita IVA, PD External ID, Codice POD, Codice PDR o Data Firma…"
+              class="mega-search" />
+            <button id="btnAdvancedFilters" class="ghost" type="button">⚙ Filtri Avanzati</button>
+          </div>
+          <div id="activeFiltersBar" class="active-filters-bar" hidden></div>
+        </div>
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>ID Documento</th>
+                  <th>Cliente</th>
+                  <th>Commodity</th>
+                  <th>Data Firma</th>
+                  <th>Abbinamento</th>
+                  <th class="col-id">responsabile del match</th>
+                  <th class="col-action">Azione</th>
+                </tr>
+              </thead>
+              <tbody id="docTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="staging" class="view">
+        <div class="card">
+          <div class="search-row">
+            <input type="text" id="stagingSearch" placeholder="Filtra code di staging..." class="mega-search" />
+          </div>
+        </div>
+        <div class="grid two">
+          <div class="card">
+            <div class="card-head">
+              <h3>Coda Unoenergy (Signed)</h3>
+              <span class="pill">CSV Ingest</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>POD/PDR</th>
+                    <th class="col-action">Azione</th>
+                  </tr>
+                </thead>
+                <tbody id="tableUnoBody"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head">
+              <h3>Coda Postel (Archived)</h3>
+              <span class="pill">WS Ingest</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>POD/PDR</th>
+                    <th class="col-action">Azione</th>
+                  </tr>
+                </thead>
+                <tbody id="tablePostelBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="card sticky-match" id="stickyMatch" style="display: none">
+          <div id="stickyMatchText"></div>
+          <div class="top-actions">
+            <button class="ghost" id="btnManualMatch">
+              🔎 Confronta Dati
+            </button>
+            <button class="orange" id="btnStickyAutoMatch">
+              🤖 Match Automatico
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="manuale" class="view">
+        <div class="card">
+          <div class="card-head">
+            <h3>Nuovo record di test</h3>
+            <button id="fillDemo" class="ghost">
+              ⚡ Inserisci dati demo
+            </button>
+          </div>
+          <form id="manualForm" onsubmit="return false;">
+            <div class="form-grid">
+              <div class="field">
+                <label for="f_cliente_nome_cognome">Fornitura : Cliente : Nome e Cognome</label><input type="text"
+                  id="f_cliente_nome_cognome" name="cliente_nome_cognome" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_codice_fiscale">Fornitura : Cliente : Codice fiscale</label><input type="text"
+                  id="f_cliente_codice_fiscale" name="cliente_codice_fiscale" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_partita_iva">Fornitura : Cliente : Partita IVA</label><input type="text"
+                  id="f_cliente_partita_iva" name="cliente_partita_iva" />
+              </div>
+              <div class="field">
+                <label for="f_codice_pod_pdr" id="f_codice_pod_pdr_label">Codice POD</label><input type="text"
+                  id="f_codice_pod_pdr" name="codice_pod" />
+              </div>
+              <div class="field">
+                <label for="f_data_firma_contratto">Data firma contratto</label><input type="date"
+                  id="f_data_firma_contratto" name="data_firma_contratto" />
+              </div>
+              <div class="field">
+                <label for="f_commodity">Commodity</label><select id="f_commodity" name="commodity">
+                  <option value="Energia Elettrica">Energia Elettrica</option>
+                  <option value="Gas naturale">Gas naturale</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_codice_prodotto" id="f_codice_prodotto_label">Codice Prodotto EE</label><input type="text"
+                  id="f_codice_prodotto" name="codice_prodotto_ee" />
+              </div>
+              <div class="field">
+                <label for="f_contract_account">Contract Account</label><input type="text" id="f_contract_account"
+                  name="contract_account" />
+              </div>
+              <div class="field">
+                <label for="f_pde_external_id">Pde external id</label><input type="text" id="f_pde_external_id"
+                  name="pde_external_id" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_codice_identificativo_univoco">Fornitura : Cliente : Codice Identificativo
+                  Univoco</label><input type="text" id="f_cliente_codice_identificativo_univoco"
+                  name="cliente_codice_identificativo_univoco" />
+              </div>
+              <div class="field">
+                <label for="f_cliente_record_type_testuale">Fornitura : Cliente : Record Type Testuale</label><select
+                  id="f_cliente_record_type_testuale" name="cliente_record_type_testuale">
+                  <option value="Retail">Retail</option>
+                  <option value="Business">Business</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_opportunita_tipo_record">Fornitura : Opportunita : Tipo di record
+                  Opportunita</label><select id="f_opportunita_tipo_record" name="opportunita_tipo_record">
+                  <option value="Switch">Switch</option>
+                  <option value="Nuova attivazione">Nuova attivazione</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_id_forniture">ID forniture</label><input type="text" id="f_id_forniture"
+                  name="id_forniture" />
+              </div>
+              <div class="field">
+                <label for="f_opportunita_nome">Fornitura : Opportunita : Nome opportunita</label><input type="text"
+                  id="f_opportunita_nome" name="opportunita_nome" />
+              </div>
+              <div class="field">
+                <label for="f_opportunita_commodity">Fornitura : Opportunita : Commodity</label><select
+                  id="f_opportunita_commodity" name="opportunita_commodity">
+                  <option value="Power">EE</option>
+                  <option value="Gas">GA</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_stato">STATO</label><select id="f_stato" name="stato">
+                  <option value="Attivo">Attivo</option>
+                  <option value="Sospeso">Sospeso</option>
+                  <option value="Chiuso">Chiuso</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f_data_certificazione">Data Certificazione</label><input type="date"
+                  id="f_data_certificazione" name="data_certificazione" />
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="primary" id="createUno">
+                Inietta in Staging
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="users" class="view">
+        <div class="card">
+          <div class="card-head">
+            <h3>Gestione utenti</h3>
+            <span class="pill">Solo DPO</span>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Username</th>
+                  <th>Ruolo</th>
+                  <th>Creato il</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="loginOverlay" class="login-overlay">
+ <form id="loginForm" class="login-panel" onsubmit="return false;">
+      <div class="login-brand">
+          <div class="brand-mark">
+            <img style="width: 100%; height: auto;" src="images/unoenergy-saving-solutions.png" alt="DocBridge">
+          </div>
+      </div>
+  <p class="login-hint">Inserisci le tue credenziali demo per accedere(es. Mario, Luigi, Margherita)</p>
+  
+  <form id="loginForm" onsubmit="handleLoginSubmit(e)">
+    <div class="field" style="margin-bottom: 14px;">
+      <label for="loginUsername">Username</label>
+      <input type="text" id="loginUsername" placeholder="Inserisci username..." required autocomplete="username">
+    </div>
+    
+    <div class="field" style="margin-bottom: 14px;">
+      <label for="loginPassword">Password</label>
+      <input type="password" id="loginPassword" placeholder="Inserisci password..." required autocomplete="current-password">
+    </div>
+    
+    <div id="loginError" class="login-error"></div>
+    
+    <div class="form-actions" style="border-top: none; padding-top: 0;">
+      <button type="submit" class="primary full">Accedi</button>
+    </div>
+  </form>
+</div>
+
+  <div id="drawer" class="drawer">
+  <div class="drawer-panel">
+    <button class="drawer-close" id="closeDrawer">×</button>
+    <h3 id="drawerTitle">Dettagli Documento</h3>
+    <div class="meta-grid" id="drawerMetaGrid"></div>
+
+    <div class="pdf-viewer">
+      <div class="pdf-page">
+        <div class="pdf-brand">
+          <span class="pdf-brand-dot"></span>
+          <span class="pdf-brand-name">uno<b>energy</b></span>
+        </div>
+
+        <div class="pdf-doctitle">Proposta di Contratto per Clienti domestici</div>
+
+        <div class="pdf-field">
+          <small>Cliente</small>
+          <h2 id="pdfClientName">Cliente</h2>
+        </div>
+
+        <div class="pdf-field">
+          <small id="pdfPodLabel">Identificativo POD/PDR</small>
+          <span class="highlight" id="pdfPod"></span>
+        </div>
+
+        <div class="pdf-field">
+          <small>Sottoscritto il</small>
+          <span id="pdfDate"></span>
+        </div>
+
+        <p class="pdf-footnote">
+          <span class="pdf-check">✓</span>
+          Documento digitalizzato e verificato con successo rispetto ai tracciati core.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+  <div id="modalCompare" class="modal">
+    <div class="modal-panel">
+      <h3 id="compareTitle">Confronto Tracciati</h3>
+      <div class="recon-repo-header">
+        <div class="recon-repo-card recon-repo-card-uno">
+          <div class="recon-repo-card-icon"> <img style= "width: 100%; height : auto;" src = "images/logo.png" alt = "UnoEnergi.img"> </img></div>
+          <div class="recon-repo-card-body">
+            <div class="recon-repo-card-label">Uno Energy</div>
+            <div class="recon-repo-card-name" id="compareRepoUnoName">—</div>
+            <div class="recon-repo-card-client" id="compareRepoUnoClient">—</div>
+          </div>
+        </div>
+        <div class="recon-repo-card recon-repo-card-postel">
+          <div class="recon-repo-card-icon"> <img style= "width: 100%; height : auto;" src = "images/postel.png" alt = "Postel.img"> </img></div>
+
+          <div class="recon-repo-card-body">
+            <div class="recon-repo-card-label">Postel</div>
+            <div class="recon-repo-card-name" id="compareRepoPostelName">—</div>
+            <div class="recon-repo-card-client" id="compareRepoPostelClient">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="diff-grid diff-grid-scroll" id="compareDiffGrid"></div>
+      <div id="reconFooter" class="recon-footer" style="display: none">
+        <div id="reconStatus" class="recon-status pending"></div>
+        <div class="recon-footer-actions">
+          <button class="ghost" id="reconAnnulla" type="button">↺ Annulla tutto</button>
+          <button class="orange" id="reconAccoppia" type="button" disabled>✓ Accoppia record</button>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="ghost" id="closeModal">Chiudi finestra</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalAdvancedFilters" class="modal">
+    <div class="modal-panel modal-wide">
+      <div class="modal-header">
+        <h3>Filtri Avanzati</h3>
+        <button class="modal-close-btn" id="advancedFiltersCloseBtn" type="button">×</button>
+      </div>
+      <p class="modal-hint">Imposta i criteri di ricerca per filtrare i risultati della consultazione. Puoi compilare uno o più campi.</p>
+      <div id="advancedFiltersList" class="advanced-filters-grid"></div>
+      <div class="form-actions">
+        <button class="ghost" id="advancedFiltersReset" type="button">↺ Ripristina filtri</button>
+        <button class="ghost" id="advancedFiltersCancel" type="button">Annulla</button>
+        <button class="primary" id="advancedFiltersApply" type="button">🔍 Applica filtri</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-host" id="toastHost"></div>
+  <script src="app.js"></script>
+</body>
+
+</html>

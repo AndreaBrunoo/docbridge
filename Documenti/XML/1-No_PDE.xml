@@ -1,0 +1,23 @@
+<root>
+  <info>
+    <cliente_nome_cognome>Stefano Neri</cliente_nome_cognome>
+    <cliente_codice_fiscale>VRDLGU75M03H501F</cliente_codice_fiscale>
+    <cliente_partita_iva>01234567891</cliente_partita_iva>
+    <data_firma_contratto>2026-07-09</data_firma_contratto>
+    <codice_pod/>
+    <codice_pdr>500210655268</codice_pdr>
+    <contract_account>CA-970114</contract_account>
+    <pde_external_id/>
+    <commodity>GA</commodity>
+    <cliente_codice_identificativo_univoco>CID-001</cliente_codice_identificativo_univoco>
+    <cliente_record_type_testuale>Residenziale</cliente_record_type_testuale>
+    <opportunita_tipo_record>Contratto Gas naturale</opportunita_tipo_record>
+    <opportunita_id>OPP-4941</opportunita_id>
+    <opportunita_nome>Migrazione Gas naturale</opportunita_nome>
+    <opportunita_commodity>GA</opportunita_commodity>
+    <codice_prodotto_ee/>
+    <codice_prodotto_gas>CON_PL_VAR_GAS</codice_prodotto_gas>
+    <stato>In lavorazione</stato>
+    <data_certificazione>2026-07-09</data_certificazione>
+  </info>
+</root>
