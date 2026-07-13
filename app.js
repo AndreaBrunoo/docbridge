@@ -244,6 +244,32 @@ function changeUserRole(userId, newRole) {
   return true;
 }
 
+// Crea nuove credenziali di accesso (solo DPO). Riusa lo stesso "storage"
+// demo degli altri utenti (state.users / localStorage): non è un vero
+// provisioning lato server, solo la controparte in-app di changeUserRole.
+function createUser(username, password, role) {
+  if (!can("action:cambia-ruolo")) return { ok: false, error: "Azione non consentita" };
+  username = (username || "").trim();
+  password = (password || "").trim();
+  if (!username) return { ok: false, error: "Username obbligatorio" };
+  if (!password || password.length < 4) return { ok: false, error: "Password troppo corta (min. 4 caratteri)" };
+  if (!["Consultatore", "Tecnico", "DPO"].includes(role)) return { ok: false, error: "Ruolo non valido" };
+  if (findUserByUsername(username)) return { ok: false, error: "Username già esistente" };
+
+  const id = "u_" + username.toLowerCase().replace(/[^a-z0-9]+/g, "_") + "_" + Date.now().toString(36);
+  const newUser = {
+    id,
+    username,
+    role,
+    password,
+    createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+  };
+  state.users.push(newUser);
+  logEvent(state, `Nuova credenziale creata: ${username} (${role})`, state.currentUser?.id);
+  save();
+  return { ok: true, user: newUser };
+}
+
 function save() {
   try {
     updateNotificationDot();
@@ -1589,6 +1615,7 @@ function renderUsersPanel() {
     b.innerHTML = '<tr><td colspan="3" class="empty">Accesso riservato al ruolo DPO.</td></tr>';
     return;
   }
+  renderNewUserForm();
 const roles = ["Consultatore", "Tecnico", "DPO"];
   b.innerHTML = state.users
     .map((u) => {
@@ -1648,6 +1675,36 @@ const roles = ["Consultatore", "Tecnico", "DPO"];
         }
       };
     });
+  });
+}
+
+// Gestisce il form "Registra nuove credenziali" nel pannello Gestione
+// utenti. Il form nell'HTML resta statico: qui colleghiamo solo il submit
+// (idempotente, si può richiamare ad ogni render senza duplicare listener
+// perché sostituiamo il nodo del form con la sua clonazione).
+function renderNewUserForm() {
+  const form = document.getElementById("newUserForm");
+  if (!form) return;
+
+  const freshForm = form.cloneNode(true);
+  form.replaceWith(freshForm);
+
+  freshForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const username = document.getElementById("newUserUsername")?.value || "";
+    const password = document.getElementById("newUserPassword")?.value || "";
+    const role = document.getElementById("newUserRole")?.value || "";
+    const err = document.getElementById("newUserError");
+    if (err) err.textContent = "";
+
+    const result = createUser(username, password, role);
+    if (!result.ok) {
+      if (err) err.textContent = result.error;
+      return;
+    }
+    freshForm.reset();
+    toast(`Credenziale creata per ${result.user.username}`);
+    renderUsersPanel();
   });
 }
 
