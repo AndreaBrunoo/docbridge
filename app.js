@@ -1363,13 +1363,41 @@ function openManualCompare() {
     p: { ...selectedPostel },
   };
   FIELDS.forEach(([k, label]) => {
+    const isPde = k === "pde_external_id";
+    // Il PD External ID va gestito a parte: se manca su ENTRAMBI i lati
+    // (tipicamente perché il CSV Unoenergy caricato non lo conteneva),
+    // il campo va comunque mostrato con un editor per l'inserimento
+    // manuale, invece di essere semplicemente omesso dalla griglia.
+    if (isPde) {
+      const uValid = isValidPdeExternalId(selectedUno[k]);
+      const pValid = isValidPdeExternalId(selectedPostel[k]);
+      if (!uValid && !pValid) {
+        b.innerHTML += `
+    <div class="diff diff-merged diff-pde-manual" data-key="${k}">
+      <small>${label} (mancante — inseriscilo manualmente)</small>
+      <div class="diff-merged-row">
+        <input type="text" class="diff-merged-input pde-manual-input" placeholder="Es. PDE-123456" />
+        <button class="diff-merged-apply pde-manual-apply" type="button">Salva</button>
+      </div>
+      <div class="diff-merged-hint">Il CSV caricato non conteneva un PD External ID: puoi digitarlo qui per completare il record prima dell'accoppiamento.</div>
+    </div>
+   `;
+      } else {
+        const safeU = escapeHtml(selectedUno[k] || "—");
+        const safeP = escapeHtml(selectedPostel[k] || "—");
+        b.innerHTML += `
+    <div class="diff"><small>${label} (Unoenergy): </small><b>${safeU}</b></div>
+    <div class="diff"><small>${label} (Postel): </small><b>${safeP}</b></div>
+   `;
+      }
+      return;
+    }
     if (selectedUno[k] || selectedPostel[k]) {
       const eq = selectedUno[k] === selectedPostel[k];
-      const isIgnoredConflict = k === "pde_external_id";
-      const cls = isIgnoredConflict || eq ? "" : "changed";
+      const cls = eq ? "" : "changed";
       const safeU = escapeHtml(selectedUno[k] || "—");
       const safeP = escapeHtml(selectedPostel[k] || "—");
-      if (isIgnoredConflict || eq) {
+      if (eq) {
         b.innerHTML += `
     <div class="diff ${cls}"><small>${label} (Unoenergy): </small><b>${safeU}</b></div>
     <div class="diff ${cls}"><small>${label} (Postel): </small><b>${safeP}</b></div>
@@ -1382,6 +1410,48 @@ function openManualCompare() {
       }
     }
   });
+  // Aggancia il salvataggio manuale del PD External ID, se il riquadro è
+  // stato renderizzato (vedi ciclo sopra). Il valore viene applicato a
+  // entrambi i record in staging, in memoria, con lo stesso comportamento
+  // "provvisorio" degli altri campi unificati (persiste solo su "Accoppia
+  // record", scartato se il modal viene chiuso senza confermare).
+  const pdeManualBtn = b.querySelector(".pde-manual-apply");
+  if (pdeManualBtn) {
+    const savePdeManual = () => {
+      const wrapper = pdeManualBtn.closest(".diff-pde-manual");
+      const input = wrapper.querySelector(".pde-manual-input");
+      const newVal = input.value.trim();
+      if (!newVal) {
+        toast("Inserisci un valore per il PD External ID prima di salvare");
+        return;
+      }
+      const dup = state.matched.find(
+        (r) => r.pde_external_id && r.pde_external_id.trim() === newVal
+      );
+      if (dup) {
+        toast(`PD External ID "${newVal}" già presente in consultazione (documento ${dup.id}).`);
+        return;
+      }
+      selectedUno.pde_external_id = newVal;
+      selectedPostel.pde_external_id = newVal;
+      checkStickyMatch();
+      toast('PD External ID inserito manualmente (provvisorio, non ancora salvato)');
+      wrapper.classList.add("confirmed");
+      wrapper.innerHTML = `
+        <small>PD External ID (inserito manualmente)</small>
+        <b>${escapeHtml(newVal)}</b>
+        <div class="diff-merged-hint">✅ Valore applicato a entrambi i record</div>
+      `;
+    };
+    pdeManualBtn.addEventListener("click", savePdeManual);
+    const pdeManualInput = b.querySelector(".pde-manual-input");
+    pdeManualInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        savePdeManual();
+      }
+    });
+  }
   // Delega: click su matita → fondi i due riquadri in un editor viola.
   // Il valore iniziale dell'input è pre-popolato con la sorgente scelta
   // (Uno Energy o Postel) grazie all'attributo data-source sulla matita.
