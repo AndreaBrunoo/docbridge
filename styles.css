@@ -1242,6 +1242,25 @@ body.dark .table-wrap {
   border-style: solid !important;
 }
 
+/* Lampeggio rosso per richiamare l'attenzione sul PDE mancante quando
+   l'operatore prova ad accoppiare senza averlo ancora inserito. */
+@keyframes pde-flash-alert {
+  0%, 100% {
+    border-color: var(--orange);
+    box-shadow: none;
+    background: var(--panel-nested);
+  }
+  25%, 75% {
+    border-color: var(--red);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.35);
+    background: #fee2e2;
+  }
+}
+
+.diff-pde-manual.pde-flash-alert {
+  animation: pde-flash-alert 0.5s ease-in-out 3;
+}
+
 @keyframes diffMerge {
   from {
     opacity: 0;
