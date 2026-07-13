@@ -244,6 +244,32 @@ function changeUserRole(userId, newRole) {
   return true;
 }
 
+// Crea nuove credenziali di accesso (solo DPO). Riusa lo stesso "storage"
+// demo degli altri utenti (state.users / localStorage): non è un vero
+// provisioning lato server, solo la controparte in-app di changeUserRole.
+function createUser(username, password, role) {
+  if (!can("action:cambia-ruolo")) return { ok: false, error: "Azione non consentita" };
+  username = (username || "").trim();
+  password = (password || "").trim();
+  if (!username) return { ok: false, error: "Username obbligatorio" };
+  if (!password || password.length < 4) return { ok: false, error: "Password troppo corta (min. 4 caratteri)" };
+  if (!["Consultatore", "Tecnico", "DPO"].includes(role)) return { ok: false, error: "Ruolo non valido" };
+  if (findUserByUsername(username)) return { ok: false, error: "Username già esistente" };
+
+  const id = "u_" + username.toLowerCase().replace(/[^a-z0-9]+/g, "_") + "_" + Date.now().toString(36);
+  const newUser = {
+    id,
+    username,
+    role,
+    password,
+    createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+  };
+  state.users.push(newUser);
+  logEvent(state, `Nuova credenziale creata: ${username} (${role})`, state.currentUser?.id);
+  save();
+  return { ok: true, user: newUser };
+}
+
 function save() {
   try {
     updateNotificationDot();
@@ -1096,8 +1122,17 @@ function checkStickyMatch() {
       if (btnAuto) btnAuto.disabled = true;
     } else {
       const conf = confidence(selectedUno, selectedPostel);
+      // Se il PDE manca su entrambi i lati, segnaliamolo subito accanto al
+      // grado di confidenza: è l'informazione che serve all'operatore per
+      // capire perché il "Match automatico" potrebbe non bastare e va
+      // completata a mano nel Confronto Tracciati.
+      const pdeMissing = !isValidPdeExternalId(selectedUno.pde_external_id) &&
+        !isValidPdeExternalId(selectedPostel.pde_external_id);
+      const pdeNote = pdeMissing
+        ? ` <span class="sticky-pde-missing">⚠️ PDE mancante</span>`
+        : "";
       document.getElementById("stickyMatchText").innerHTML =
-        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
+        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})${pdeNote}</span>`;
       el.classList.remove("sticky-match-blocked");
       if (btnCompare) btnCompare.disabled = false;
       if (btnAuto) btnAuto.disabled = false;
@@ -1589,6 +1624,7 @@ function renderUsersPanel() {
     b.innerHTML = '<tr><td colspan="3" class="empty">Accesso riservato al ruolo DPO.</td></tr>';
     return;
   }
+  renderNewUserForm();
 const roles = ["Consultatore", "Tecnico", "DPO"];
   b.innerHTML = state.users
     .map((u) => {
@@ -1651,6 +1687,36 @@ const roles = ["Consultatore", "Tecnico", "DPO"];
   });
 }
 
+// Gestisce il form "Registra nuove credenziali" nel pannello Gestione
+// utenti. Il form nell'HTML resta statico: qui colleghiamo solo il submit
+// (idempotente, si può richiamare ad ogni render senza duplicare listener
+// perché sostituiamo il nodo del form con la sua clonazione).
+function renderNewUserForm() {
+  const form = document.getElementById("newUserForm");
+  if (!form) return;
+
+  const freshForm = form.cloneNode(true);
+  form.replaceWith(freshForm);
+
+  freshForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const username = document.getElementById("newUserUsername")?.value || "";
+    const password = document.getElementById("newUserPassword")?.value || "";
+    const role = document.getElementById("newUserRole")?.value || "";
+    const err = document.getElementById("newUserError");
+    if (err) err.textContent = "";
+
+    const result = createUser(username, password, role);
+    if (!result.ok) {
+      if (err) err.textContent = result.error;
+      return;
+    }
+    freshForm.reset();
+    toast(`Credenziale creata per ${result.user.username}`);
+    renderUsersPanel();
+  });
+}
+
 function closeAllRoleDropdowns() {
   document.querySelectorAll(".role-dropdown.open").forEach((el) => el.classList.remove("open"));
 }
@@ -1707,14 +1773,14 @@ function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
   input.focus();
   input.select();
 
-  wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
-    // Determine which div is for Uno and which for Post
+wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
+    // Determine which div is for Uno and which for Postel
     const unoDiv = (diffUno.dataset.side === 'u') ? diffUno : diffPostel;
     const postDiv = (diffUno.dataset.side === 'p') ? diffUno : diffPostel;
-    // Remove the wrapper and put back the two divs in the correct order: Uno then Post
+    // Rimetti i due riquadri nell'ordine corretto: Uno poi Postel
     wrapper.replaceWith(unoDiv);
-    unoDiv.parentNode?.insertBefore(postDiv, unoDiv);
-    // Re-attach the pencil buttons
+    unoDiv.after(postDiv); // <-- inserisce postDiv SUBITO DOPO unoDiv, non prima
+    // Ri-aggancia i bottoni matita
     wirePencilButton(unoDiv, key);
     wirePencilButton(postDiv, key);
     renderReconFooter();

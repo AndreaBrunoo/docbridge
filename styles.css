@@ -713,6 +713,23 @@ body.dark .table-wrap {
   margin-top: 2px;
 }
 
+/* Avviso "PDE mancante" nella barra sticky di confronto Staging, in una
+   casellina (badge) ben visibile invece di semplice testo colorato. */
+.sticky-pde-missing {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  color: var(--orange) !important;
+  font-weight: 700;
+  font-size: 11px;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--orange);
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.1);
+  vertical-align: middle;
+}
+
 .empty {
   padding: 40px;
   text-align: center;
