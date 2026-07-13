@@ -1229,6 +1229,19 @@ body.dark .table-wrap {
   font-weight: 600;
 }
 
+/* --- PD EXTERNAL ID MANCANTE: inserimento manuale nel Confronto Tracciati ---
+   Riquadro dedicato mostrato quando il CSV Unoenergy caricato non conteneva
+   un PD External ID valido: bordo tratteggiato per segnalare "dato mancante
+   da compilare", distinto dal viola dei campi in mismatch risolti. */
+.diff-pde-manual {
+  border: 1.5px dashed var(--orange) !important;
+  background: var(--panel-nested);
+}
+
+.diff-pde-manual.confirmed {
+  border-style: solid !important;
+}
+
 @keyframes diffMerge {
   from {
     opacity: 0;
