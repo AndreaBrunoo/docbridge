@@ -1524,10 +1524,13 @@ function renderReconFooter() {
   const pdeStillMissing = _reconPdeMissing && !isValidPdeExternalId(selectedUno?.pde_external_id);
 
   // Il footer va mostrato se ci sono conflitti da risolvere OPPURE se il
-  // PDE è ancora mancante: in quest'ultimo caso, anche con un match al
-  // 100% su tutti gli altri campi (nessun .diff.changed), l'operatore deve
-  // comunque vedere il footer per poter inserire il PDE e poi accoppiare.
-  if (totalConflicts === 0 && !pdeStillMissing) {
+  // PDE era mancante all'apertura del modal. Qui usiamo APPOSTA il flag
+  // fisso _reconPdeMissing (non quello dinamico ricalcolato sopra): una
+  // volta entrati nel flusso guidato perché il PDE andava inserito, il
+  // footer deve restare visibile per tutta la sessione, anche subito dopo
+  // aver premuto "Salva" — altrimenti il bottone "Accoppia record"
+  // sparirebbe proprio nell'istante in cui l'operatore ne ha bisogno.
+  if (totalConflicts === 0 && !_reconPdeMissing) {
     footer.style.display = "none";
     return;
   }
