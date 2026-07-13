@@ -1648,14 +1648,15 @@ function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
   input.select();
 
   wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
-    // Ripristina la coppia originale dei due riquadri in mismatch.
-    // diffPostel era stato rimosso dal DOM, quindi reinseriamo prima lui
-    // e poi diffUno prima di diffPostel per ripristinare l'ordine.
-    wrapper.replaceWith(diffPostel);
-    diffPostel.parentNode?.insertBefore(diffUno, diffPostel);
-    // Ri-aggancia i listener delle matite su entrambi i riquadri ripristinati
-    wirePencilButton(diffUno, key);
-    wirePencilButton(diffPostel, key);
+    // Determine which div is for Uno and which for Post
+    const unoDiv = (diffUno.dataset.side === 'u') ? diffUno : diffPostel;
+    const postDiv = (diffUno.dataset.side === 'p') ? diffUno : diffPostel;
+    // Remove the wrapper and put back the two divs in the correct order: Uno then Post
+    wrapper.replaceWith(unoDiv);
+    unoDiv.parentNode?.insertBefore(postDiv, unoDiv);
+    // Re-attach the pencil buttons
+    wirePencilButton(unoDiv, key);
+    wirePencilButton(postDiv, key);
     renderReconFooter();
   });
 
