@@ -1716,14 +1716,14 @@ function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
   input.focus();
   input.select();
 
-  wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
-    // Determine which div is for Uno and which for Post
+wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
+    // Determine which div is for Uno and which for Postel
     const unoDiv = (diffUno.dataset.side === 'u') ? diffUno : diffPostel;
     const postDiv = (diffUno.dataset.side === 'p') ? diffUno : diffPostel;
-    // Remove the wrapper and put back the two divs in the correct order: Uno then Post
+    // Rimetti i due riquadri nell'ordine corretto: Uno poi Postel
     wrapper.replaceWith(unoDiv);
-    unoDiv.parentNode?.insertBefore(postDiv, unoDiv);
-    // Re-attach the pencil buttons
+    unoDiv.after(postDiv); // <-- inserisce postDiv SUBITO DOPO unoDiv, non prima
+    // Ri-aggancia i bottoni matita
     wirePencilButton(unoDiv, key);
     wirePencilButton(postDiv, key);
     renderReconFooter();
