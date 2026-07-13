@@ -1337,6 +1337,13 @@ let _reconSnapshot = null;
 // rappresenta il numero di errori originali (Y), che non deve diminuire
 // mano a mano che l'utente risolve i singoli campi.
 let _reconTotalConflicts = 0;
+// True se, all'apertura del modal, il PD External ID era mancante/non
+// valido su ENTRAMBI i lati (record renderizzato con l'editor manuale).
+// Serve a tenere visibile il footer con "Accoppia record" anche quando
+// non ci sono altri campi in mismatch (match al 100% su tutto il resto),
+// perché in quel caso l'unica azione richiesta all'operatore è proprio
+// l'inserimento manuale del PDE.
+let _reconPdeMissing = false;
 
 function openManualCompare() {
   logEvent(state, `Riconciliazione guidata aperta: ${selectedUno.id} ↔ ${selectedPostel.id}`);
@@ -1362,6 +1369,8 @@ function openManualCompare() {
     u: { ...selectedUno },
     p: { ...selectedPostel },
   };
+  _reconPdeMissing = !isValidPdeExternalId(selectedUno.pde_external_id) &&
+    !isValidPdeExternalId(selectedPostel.pde_external_id);
   FIELDS.forEach(([k, label]) => {
     const isPde = k === "pde_external_id";
     // Il PD External ID va gestito a parte: se manca su ENTRAMBI i lati
@@ -1442,6 +1451,7 @@ function openManualCompare() {
         <b>${escapeHtml(newVal)}</b>
         <div class="diff-merged-hint">✅ Valore applicato a entrambi i record</div>
       `;
+      renderReconFooter();
     };
     pdeManualBtn.addEventListener("click", savePdeManual);
     const pdeManualInput = b.querySelector(".pde-manual-input");
@@ -1481,17 +1491,21 @@ function openManualCompare() {
 }
 
 // Mostra/nasconde il footer "Accoppia" + "Annulla" in base allo stato
-// dei conflitti. Il tasto "Accoppia" è abilitato solo se TUTTI i campi in
-// mismatch sono stati risolti (cioè non ci sono più .diff.changed aperti
-// che non siano dentro un editor unificato "confirmed").
+// dei conflitti. Il tasto "Accoppia" resta cliccabile finché ci sono solo
+// campi risolti, ma l'abbinamento vero e proprio viene bloccato nel click
+// handler se il PD External ID è ancora mancante (vedi flashPdeMissingField
+// e il listener di reconAccoppia): teniamo il bottone non-disabled in quel
+// caso specifico per poter mostrare il feedback lampeggiante al click.
 function renderReconFooter() {
   const footer = document.getElementById("reconFooter");
   if (!footer) return;
   const grid = document.getElementById("compareDiffGrid");
   // Conta i CAMPI (non i singoli riquadri: ogni campo non risolto ha 2
   // riquadri "changed", uno Unoenergy e uno Postel, con lo stesso
-  // data-key) ancora da risolvere. Il campo Pde External ID non va
-  // considerato come conflitto di matching e non deve bloccare l'accoppiamento.
+  // data-key) ancora da risolvere. Il campo Pde External ID non entra in
+  // questo conteggio: viene gestito a parte perché blocca l'accoppiamento
+  // in modo diverso (niente "conflitto" da confrontare, solo un dato da
+  // compilare).
   const pending = new Set(
     Array.from(grid.querySelectorAll(".diff.changed"))
       .map((el) => el.getAttribute("data-key"))
@@ -1502,23 +1516,69 @@ function renderReconFooter() {
   // volta che un campo viene unificato.
   const totalConflicts = _reconTotalConflicts;
   const btnAccoppia = document.getElementById("reconAccoppia");
-  const btnAnnulla = document.getElementById("reconAnnulla");
   const status = document.getElementById("reconStatus");
-  if (totalConflicts === 0) {
+  // Il PD External ID è obbligatorio per poter accoppiare: se era mancante
+  // su entrambi i lati all'apertura del modal e non è ancora stato
+  // inserito manualmente (né diventato valido in altro modo), l'operatore
+  // non può ancora confermare.
+  const pdeStillMissing = _reconPdeMissing && !isValidPdeExternalId(selectedUno?.pde_external_id);
+
+  // Il footer va mostrato se ci sono conflitti da risolvere OPPURE se il
+  // PDE era mancante all'apertura del modal. Qui usiamo APPOSTA il flag
+  // fisso _reconPdeMissing (non quello dinamico ricalcolato sopra): una
+  // volta entrati nel flusso guidato perché il PDE andava inserito, il
+  // footer deve restare visibile per tutta la sessione, anche subito dopo
+  // aver premuto "Salva" — altrimenti il bottone "Accoppia record"
+  // sparirebbe proprio nell'istante in cui l'operatore ne ha bisogno.
+  if (totalConflicts === 0 && !_reconPdeMissing) {
     footer.style.display = "none";
     return;
   }
   footer.style.display = "flex";
-  if (pending === 0) {
-    status.textContent = "Tutti i conflitti sono stati risolti. Puoi accoppiare i record.";
-    status.className = "recon-status ok";
-    btnAccoppia.disabled = false;
-  } else {
+
+  if (pending > 0) {
     status.textContent = `Conflitti da risolvere: ${pending} di ${totalConflicts}. Risolvi tutti i campi in mismatch per abilitare l'accoppiamento.`;
     status.className = "recon-status pending";
     btnAccoppia.disabled = true;
+    return;
   }
+
+  if (pdeStillMissing) {
+    status.textContent = "PD External ID mancante: inseriscilo qui sopra per poter accoppiare i record.";
+    status.className = "recon-status pending";
+    // Resta cliccabile (non disabled) così il click handler può mostrare
+    // il feedback lampeggiante sul campo PDE invece di un bottone "morto".
+    btnAccoppia.disabled = false;
+    return;
+  }
+
+  status.textContent = "Tutti i conflitti sono stati risolti. Puoi accoppiare i record.";
+  status.className = "recon-status ok";
+  btnAccoppia.disabled = false;
 }
+
+// Riporta lo scroll sul riquadro del PD External ID mancante e lo fa
+// lampeggiare in rosso, per richiamare l'attenzione dell'operatore quando
+// tenta di accoppiare senza averlo ancora inserito.
+function flashPdeMissingField() {
+  const grid = document.getElementById("compareDiffGrid");
+  const pdeBox = grid?.querySelector(".diff-pde-manual");
+  if (!pdeBox) return;
+  pdeBox.scrollIntoView({ behavior: "smooth", block: "center" });
+  // Rimuovi ed forza il reflow prima di riaggiungere la classe, così
+  // l'animazione riparte anche se l'operatore clicca "Accoppia" più volte
+  // di seguito senza mai completare l'inserimento.
+  pdeBox.classList.remove("pde-flash-alert");
+  void pdeBox.offsetWidth;
+  pdeBox.classList.add("pde-flash-alert");
+  pdeBox.addEventListener(
+    "animationend",
+    () => pdeBox.classList.remove("pde-flash-alert"),
+    { once: true }
+  );
+  pdeBox.querySelector(".pde-manual-input")?.focus();
+}
+
 
 // Pannello "Gestione utenti", visibile solo al DPO. Lista utenti demo con
 // possibilità di cambiare ruolo tramite una select inline.
@@ -2504,6 +2564,14 @@ window.addEventListener("DOMContentLoaded", () => {
     if (document.getElementById("reconAccoppia").disabled) return;
     if (commodityIncompatible(selectedUno, selectedPostel)) {
       toast("Abbinamento non consentito: un record Elettrica (POD) non può essere abbinato a un record Gas (PDR).");
+      return;
+    }
+    // Il PD External ID è obbligatorio: se era mancante su entrambi i lati
+    // e non è ancora stato inserito manualmente, blocchiamo l'accoppiamento
+    // e richiamiamo l'attenzione dell'operatore sul campo.
+    if (_reconPdeMissing && !isValidPdeExternalId(selectedUno.pde_external_id)) {
+      toast("Inserisci il PD External ID prima di poter accoppiare i record.");
+      flashPdeMissingField();
       return;
     }
     _reconSnapshot = null; // le modifiche sono confermate, non servono più
