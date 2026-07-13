@@ -230,15 +230,12 @@ function revealUser(userId) {
 function changeUserRole(userId, newRole) {
   if (!can("action:cambia-ruolo")) return false;
   if (!["Consultatore", "Tecnico", "DPO"].includes(newRole)) return false;
+  if (state.currentUser?.id === userId) return false; // non puoi modificare il tuo stesso ruolo
   const u = findUserById(userId);
   if (!u) return false;
   const oldRole = u.role;
   if (oldRole === newRole) return true;
   u.role = newRole;
-  // Aggiorna anche eventuale currentUser se stiamo modificando l'utente loggato
-  if (state.currentUser?.id === u.id) {
-    state.currentUser.role = newRole;
-  }
   logEvent(state, `Cambio ruolo: ${u.username} ${oldRole} → ${newRole}`, state.currentUser?.id);
   save();
   return true;
@@ -1122,17 +1119,8 @@ function checkStickyMatch() {
       if (btnAuto) btnAuto.disabled = true;
     } else {
       const conf = confidence(selectedUno, selectedPostel);
-      // Se il PDE manca su entrambi i lati, segnaliamolo subito accanto al
-      // grado di confidenza: è l'informazione che serve all'operatore per
-      // capire perché il "Match automatico" potrebbe non bastare e va
-      // completata a mano nel Confronto Tracciati.
-      const pdeMissing = !isValidPdeExternalId(selectedUno.pde_external_id) &&
-        !isValidPdeExternalId(selectedPostel.pde_external_id);
-      const pdeNote = pdeMissing
-        ? ` <span class="sticky-pde-missing">⚠️ PDE mancante</span>`
-        : "";
       document.getElementById("stickyMatchText").innerHTML =
-        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})${pdeNote}</span>`;
+        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
       el.classList.remove("sticky-match-blocked");
       if (btnCompare) btnCompare.disabled = false;
       if (btnAuto) btnAuto.disabled = false;
@@ -1641,18 +1629,21 @@ const roles = ["Consultatore", "Tecnico", "DPO"];
         })
         .join("");
       const isSelf = state.currentUser?.id === u.id;
+      const roleCell = isSelf
+        ? `<span class="role-dropdown-trigger role-${roleClass} is-disabled" title="Non puoi modificare il tuo stesso ruolo">
+             <span class="role-dropdown-label"><span class="role-dropdown-dot"></span>${escapeHtml(u.role)}</span>
+           </span>`
+        : `<div class="role-dropdown" data-user-id="${u.id}">
+             <button type="button" class="role-dropdown-trigger role-${roleClass}">
+               <span class="role-dropdown-label"><span class="role-dropdown-dot"></span>${escapeHtml(u.role)}</span>
+               <span class="role-dropdown-arrow">▾</span>
+             </button>
+             <div class="role-dropdown-menu">${options}</div>
+           </div>`;
       return `
         <tr>
           <td><b>${escapeHtml(u.username)}</b>${isSelf ? ' <small class="pill">tu</small>' : ""}</td>
-          <td>
-            <div class="role-dropdown" data-user-id="${u.id}">
-              <button type="button" class="role-dropdown-trigger role-${roleClass}">
-                <span class="role-dropdown-label"><span class="role-dropdown-dot"></span>${escapeHtml(u.role)}</span>
-                <span class="role-dropdown-arrow">▾</span>
-              </button>
-              <div class="role-dropdown-menu">${options}</div>
-            </div>
-          </td>
+          <td>${roleCell}</td>
           <td><small>${escapeHtml(u.createdAt || "—")}</small></td>
         </tr>
       `;
@@ -1773,16 +1764,15 @@ function openUnifiedEditor(key, diffUno, diffPostel, source = "u") {
   input.focus();
   input.select();
 
-wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
-    // Determine which div is for Uno and which for Postel
-    const unoDiv = (diffUno.dataset.side === 'u') ? diffUno : diffPostel;
-    const postDiv = (diffUno.dataset.side === 'p') ? diffUno : diffPostel;
-    // Rimetti i due riquadri nell'ordine corretto: Uno poi Postel
-    wrapper.replaceWith(unoDiv);
-    unoDiv.after(postDiv); // <-- inserisce postDiv SUBITO DOPO unoDiv, non prima
-    // Ri-aggancia i bottoni matita
-    wirePencilButton(unoDiv, key);
-    wirePencilButton(postDiv, key);
+  wrapper.querySelector(".diff-merged-cancel").addEventListener("click", () => {
+    // Ripristina la coppia originale dei due riquadri in mismatch.
+    // diffPostel era stato rimosso dal DOM, quindi reinseriamo prima lui
+    // e poi diffUno prima di diffPostel per ripristinare l'ordine.
+    wrapper.replaceWith(diffPostel);
+    diffPostel.parentNode?.insertBefore(diffUno, diffPostel);
+    // Ri-aggancia i listener delle matite su entrambi i riquadri ripristinati
+    wirePencilButton(diffUno, key);
+    wirePencilButton(diffPostel, key);
     renderReconFooter();
   });
 
