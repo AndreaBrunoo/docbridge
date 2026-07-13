@@ -1096,8 +1096,17 @@ function checkStickyMatch() {
       if (btnAuto) btnAuto.disabled = true;
     } else {
       const conf = confidence(selectedUno, selectedPostel);
+      // Se il PDE manca su entrambi i lati, segnaliamolo subito accanto al
+      // grado di confidenza: è l'informazione che serve all'operatore per
+      // capire perché il "Match automatico" potrebbe non bastare e va
+      // completata a mano nel Confronto Tracciati.
+      const pdeMissing = !isValidPdeExternalId(selectedUno.pde_external_id) &&
+        !isValidPdeExternalId(selectedPostel.pde_external_id);
+      const pdeNote = pdeMissing
+        ? ` <span class="sticky-pde-missing">⚠️ PDE mancante</span>`
+        : "";
       document.getElementById("stickyMatchText").innerHTML =
-        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})</span>`;
+        `Confronto: <b>${selectedUno.id}</b> ↔ <b>${selectedPostel.id}</b> <br><span>Grado di confidenza: <b>${conf.score}%</b> (${conf.type})${pdeNote}</span>`;
       el.classList.remove("sticky-match-blocked");
       if (btnCompare) btnCompare.disabled = false;
       if (btnAuto) btnAuto.disabled = false;
